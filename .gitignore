@@ -1,0 +1,27 @@
+# ── Hassas / yerel (ASLA commit'lenmez) ──────────────────────────────
+.netrc
+*.p8
+*.cer
+*.mobileprovision
+*.p12
+Secrets.xcconfig
+**/*.xcconfig.local
+GoogleService-Info.plist
+# Public token Info.plist'e elle eklenir; örnek değerler dışında commit'leme
+
+# ── Xcode ────────────────────────────────────────────────────────────
+build/
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+.swiftpm/
+Package.resolved
+
+# ── macOS / araçlar ──────────────────────────────────────────────────
+.DS_Store
+*.swp
+*~

@@ -1,0 +1,12 @@
+<!--
+  Info.plist'e EKLENECEK anahtarlar.
+  ÖNEMLİ: NSLocationWhenInUseUsageDescription EKLEME — konum izni istemiyoruz.
+-->
+<key>MBXAccessToken</key>
+<string>pk.PUBLIC_TOKEN_BURAYA</string>
+
+<!--
+  Offline indirme TAMAMEN diskten render için ek bir anahtar gerektirmez.
+  Uçak modunda render olur; ATS/HTTP ayarı gerekmez (Mapbox HTTPS kullanır).
+  KONUM ANAHTARI YOK → sistem GPS izni penceresi açmaz.
+-->
