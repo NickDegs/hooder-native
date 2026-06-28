@@ -40,18 +40,24 @@ targets:
           - "LICENSE"
           - "fastlane"
           - ".github"
+          - "Info.plist"
     dependencies:
       - package: MapboxMaps
+    # Info.plist'i XcodeGen üretir → ITSAppUsesNonExemptEncryption GERÇEK Boolean
+    # (false) olur → Apple "şifreleme/export compliance" maili kesilir.
+    # Konum İZNİ ANAHTARI YOK → GPS sorulmaz.
+    info:
+      path: Info.plist
+      properties:
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        # iPhone yalnız portre; iPad doğrulaması için iPad'e tüm yönelimler (iPhone-only app)
+        UISupportedInterfaceOrientations~iphone: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        # Mapbox public token (CI'da pk.PUBLIC_TOKEN_BURAYA → gerçek token ile değiştirilir)
+        MBXAccessToken: pk.PUBLIC_TOKEN_BURAYA
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.realvirtuality.landlord
-        GENERATE_INFOPLIST_FILE: "YES"
-        # Konum İZNİ ANAHTARI YOK → GPS sorulmaz.
-        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "YES"
-        # iPhone yalnız portre; iPad doğrulaması için iPad'e tüm yönelimler (iPhone-only app)
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        ITSAppUsesNonExemptEncryption: "NO"
-        # Mapbox public token (kendi pk.* token'ınla değiştir; xcconfig'e taşımak daha güvenli):
-        INFOPLIST_KEY_MBXAccessToken: "pk.PUBLIC_TOKEN_BURAYA"
+        GENERATE_INFOPLIST_FILE: "NO"
