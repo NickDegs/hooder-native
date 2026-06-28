@@ -20,11 +20,8 @@ struct PropertyMapView: UIViewRepresentable {
     var onDense: ((Bool) -> Void)? = nil
     var flyTarget: CLLocationCoordinate2D? = nil   // "konumuma git" → buraya uç
 
-    // Aynı anda en fazla marker + üst üste binme piksel aralığı
-    private let cap = 30
-    private let gapX: CGFloat = 78
-    private let gapY: CGFloat = 42
-    private let denseLimit = 60
+    // En değerli N mülk symbol layer'a verilir; Mapbox collision declutter eder.
+    private let maxMarkers = 150
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -36,8 +33,9 @@ struct PropertyMapView: UIViewRepresentable {
         map.ornaments.options.scaleBar.visibility = .hidden
 
         let manager = map.annotations.makePointAnnotationManager()
-        manager.iconAllowOverlap = true
-        manager.textAllowOverlap = true
+        manager.iconAllowOverlap = true       // pin noktaları hep görünsün
+        manager.textAllowOverlap = false      // fiyat metni çakışmasın (native declutter)
+        manager.iconIgnorePlacement = true    // ikon yerleşimi metni engellemesin
 
         let c = context.coordinator
         c.map = map
@@ -81,41 +79,17 @@ struct PropertyMapView: UIViewRepresentable {
 
         init(_ parent: PropertyMapView) { self.parent = parent }
 
+        // NATIVE declutter: tüm mülkleri (değere göre en üst N) symbol layer'a ver,
+        // Mapbox'ın KENDİ collision'ı (textAllowOverlap=false) çakışmayı çözer. Projeksiyon/
+        // bounds hesabı YOK → ilk render'da da etiketler kesin görünür, GPU'da akıcı.
         func reapply() {
-            guard let map, let manager else { return }
+            guard let manager else { return }
             let props = parent.properties
             let owned = parent.ownedIds
             index = Dictionary(props.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
 
-            let size = map.bounds.size
-            guard size.width > 0 else { manager.annotations = []; return }
-            let cx = size.width / 2, cy = size.height / 2
-            let margin: CGFloat = 40
-
-            // Ekranda görünenleri projekte et + merkeze uzaklık
-            struct Cand { let p: Property; let pt: CGPoint; let d: CGFloat }
-            var cands: [Cand] = []
-            for p in props {
-                let pt = map.mapboxMap.point(for: p.coordinate)
-                guard pt.x >= -margin, pt.x <= size.width + margin,
-                      pt.y >= -margin, pt.y <= size.height + margin else { continue }
-                cands.append(Cand(p: p, pt: pt, d: hypot(pt.x - cx, pt.y - cy)))
-            }
-
-            // Yoğunluk bilgisini bildir AMA marker'ları HER ZAMAN çiz (etiketler görünsün).
-            parent.onDense?(cands.count > parent.denseLimit)
-
-            // Merkeze yakın olan önce + piksel-aralıkla declutter + cap
-            cands.sort { $0.d < $1.d }
-            var placed: [CGPoint] = []
-            var chosen: [Property] = []
-            for c in cands {
-                if placed.contains(where: { abs($0.x - c.pt.x) < parent.gapX && abs($0.y - c.pt.y) < parent.gapY }) { continue }
-                placed.append(c.pt); chosen.append(c.p)
-                if chosen.count >= parent.cap { break }
-            }
-
-            manager.annotations = chosen.map { p in
+            let top = props.sorted { $0.price > $1.price }.prefix(parent.maxMarkers)
+            manager.annotations = top.map { p in
                 let isOwned = owned.contains(p.id)
                 var ann = PointAnnotation(id: p.id, coordinate: p.coordinate)
                 ann.image = .init(image: Self.pin(owned: isOwned, category: p.category),
@@ -127,6 +101,7 @@ struct PropertyMapView: UIViewRepresentable {
                 ann.textHaloColor = StyleColor(.black)
                 ann.textHaloWidth = 1.3
                 ann.textSize = 11
+                ann.symbolSortKey = -p.price   // değerli mülk öncelikli (collision'da üstte)
                 ann.tapHandler = { [weak self] _ in
                     guard let self, let prop = self.index[p.id] else { return false }
                     self.parent.onSelect(prop); return true
