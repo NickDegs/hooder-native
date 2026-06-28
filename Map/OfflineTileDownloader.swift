@@ -89,7 +89,7 @@ final class OfflineTileDownloader {
     private func startTileRegion(center: CLLocationCoordinate2D,
                                  radiusDegrees d: Double,
                                  zoomRange: ClosedRange<UInt8>) {
-        let descriptorOptions = TilesetDescriptorOptions(styleURI: styleURI, zoomRange: zoomRange)
+        let descriptorOptions = TilesetDescriptorOptions(styleURI: styleURI, zoomRange: zoomRange, tilesets: [])
         let descriptor = offlineManager.createTilesetDescriptor(for: descriptorOptions)
 
         // Merkez etrafında bbox poligon (kapalı halka)
