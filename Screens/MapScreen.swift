@@ -1,7 +1,7 @@
 import SwiftUI
 import CoreLocation
 
-// ── Harita ekranı: offline uydu + canlı mülk pin'leri + yoğunlukta liste ──────
+// ── Harita ekranı: offline uydu + canlı mülk pin'leri + "konumuma git" ────────
 struct MapScreen: View {
     var game: GameState
     var feed: PropertyFeed
@@ -9,20 +9,13 @@ struct MapScreen: View {
 
     private let start = CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)
     @State private var downloader = OfflineTileDownloader()
+    @State private var location = LocationManager()
     @State private var currentCenter = CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)
-    @State private var showAreaList = false
-    @State private var listDismissed = false
-
-    // Merkeze yakın mülkler (yoğun bölge listesi için), değere göre
-    private var nearby: [Property] {
-        feed.all
-            .sorted { distSq($0) < distSq($1) }
-            .prefix(80)
-            .sorted { $0.price > $1.price }
-    }
+    @State private var flyTarget: CLLocationCoordinate2D?
+    @State private var locating = false
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack(alignment: .bottomTrailing) {
             PropertyMapView(
                 center: start, zoom: 13.5,
                 properties: feed.all, ownedIds: game.ownedIds,
@@ -34,46 +27,56 @@ struct MapScreen: View {
                         if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
                     }
                 },
-                onDense: { dense in
-                    if dense {
-                        if !showAreaList && !listDismissed { withAnimation(Motion.smooth) { showAreaList = true } }
-                    } else {
-                        listDismissed = false
-                    }
-                }
+                flyTarget: flyTarget
             )
             .ignoresSafeArea()
 
-            if case .downloading(let p) = downloader.status {
-                Label("Harita indiriliyor… \(Int(p*100))%", systemImage: "arrow.down.circle")
-                    .font(.captionB).foregroundStyle(Theme.text)
-                    .padding(.horizontal, 12).padding(.vertical, 7)
-                    .liquidGlass(cornerRadius: 99, interactive: false)
-                    .padding(.top, 150)
-                    .transition(.opacity)
+            // İndirme rozeti (üstte)
+            VStack {
+                if case .downloading(let p) = downloader.status {
+                    Label("Harita indiriliyor… \(Int(p*100))%", systemImage: "arrow.down.circle")
+                        .font(.captionB).foregroundStyle(Theme.text)
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .liquidGlass(cornerRadius: 99, interactive: false)
+                        .padding(.top, 150)
+                }
+                Spacer()
             }
+            .frame(maxWidth: .infinity)
+
+            // 📍 Konumuma git butonu (sağ alt, tab bar'ın üstünde)
+            Button {
+                locating = true
+                location.requestAndLocate()
+            } label: {
+                Image(systemName: "location.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
+                    .frame(width: 52, height: 52)
+                    .liquidGlass(cornerRadius: 99)
+                    .opacity(locating ? 0.6 : 1)
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 16)
+            .padding(.bottom, 100)
         }
         .onAppear {
             downloader.ensureOffline(center: start)
+            location.onFix = { c in
+                locating = false
+                flyTarget = c
+                currentCenter = c
+                Task {
+                    let added = await PropertyService.shared.fetchArea(lat: c.latitude, lng: c.longitude)
+                    if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
+                }
+            }
             Task {
                 let added = await PropertyService.shared.fetchArea(lat: start.latitude, lng: start.longitude)
                 if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
             }
         }
-        .sheet(isPresented: $showAreaList, onDismiss: { listDismissed = true }) {
-            AreaListSheet(game: game, properties: nearby, onSelect: { p in
-                showAreaList = false
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { onSelect(p) }
-            })
-            .presentationDetents([.medium, .large])
-            .presentationBackground(.ultraThinMaterial)
-        }
         .animation(Motion.smooth, value: downloaderProgress)
-    }
-
-    private func distSq(_ p: Property) -> Double {
-        let dx = p.lat - currentCenter.latitude, dy = p.lng - currentCenter.longitude
-        return dx*dx + dy*dy
     }
 
     private var downloaderProgress: Double {

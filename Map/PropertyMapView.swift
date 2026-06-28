@@ -18,12 +18,13 @@ struct PropertyMapView: UIViewRepresentable {
     let onSelect: (Property) -> Void
     var onRegionChange: ((CLLocationCoordinate2D) -> Void)? = nil
     var onDense: ((Bool) -> Void)? = nil
+    var flyTarget: CLLocationCoordinate2D? = nil   // "konumuma git" → buraya uç
 
-    // Aynı anda en fazla marker + üst üste binme piksel aralığı + yoğunluk eşiği
-    private let cap = 24
-    private let gapX: CGFloat = 84
-    private let gapY: CGFloat = 44
-    private let denseLimit = 50
+    // Aynı anda en fazla marker + üst üste binme piksel aralığı
+    private let cap = 30
+    private let gapX: CGFloat = 78
+    private let gapY: CGFloat = 42
+    private let denseLimit = 60
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -42,8 +43,12 @@ struct PropertyMapView: UIViewRepresentable {
         c.map = map
         c.manager = manager
 
-        map.mapboxMap.onStyleLoaded.observeNext { _ in c.reapply() }
-            .store(in: &c.cancelables)
+        map.mapboxMap.onStyleLoaded.observeNext { _ in
+            c.reapply()
+            // İlk layout/boyut otursun diye birkaç kez tekrar dene (marker boş kalmasın)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { c.reapply() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { c.reapply() }
+        }.store(in: &c.cancelables)
 
         // Kamera durunca: bölge verisi + marker yeniden cap/declutter
         map.mapboxMap.onMapIdle.observe { [weak map] _ in
@@ -58,6 +63,11 @@ struct PropertyMapView: UIViewRepresentable {
     func updateUIView(_ uiView: MapView, context: Context) {
         context.coordinator.parent = self
         context.coordinator.reapply()
+        // "Konumuma git" hedefi değiştiyse oraya uç
+        if let t = flyTarget, context.coordinator.lastFly?.latitude != t.latitude || context.coordinator.lastFly?.longitude != t.longitude {
+            context.coordinator.lastFly = t
+            uiView.camera.fly(to: CameraOptions(center: t, zoom: 14, pitch: 52), duration: 1.2)
+        }
     }
 
     // ── Coordinator ───────────────────────────────────────────────────────────
@@ -66,6 +76,7 @@ struct PropertyMapView: UIViewRepresentable {
         weak var map: MapView?
         var manager: PointAnnotationManager?
         var cancelables = Set<AnyCancelable>()
+        var lastFly: CLLocationCoordinate2D?
         private var index: [String: Property] = [:]
 
         init(_ parent: PropertyMapView) { self.parent = parent }
@@ -91,13 +102,8 @@ struct PropertyMapView: UIViewRepresentable {
                 cands.append(Cand(p: p, pt: pt, d: hypot(pt.x - cx, pt.y - cy)))
             }
 
-            // YOĞUN → marker yok, liste devralsın
-            if cands.count > parent.denseLimit {
-                manager.annotations = []
-                parent.onDense?(true)
-                return
-            }
-            parent.onDense?(false)
+            // Yoğunluk bilgisini bildir AMA marker'ları HER ZAMAN çiz (etiketler görünsün).
+            parent.onDense?(cands.count > parent.denseLimit)
 
             // Merkeze yakın olan önce + piksel-aralıkla declutter + cap
             cands.sort { $0.d < $1.d }
