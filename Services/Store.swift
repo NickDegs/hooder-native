@@ -8,12 +8,13 @@ import Observation
 @MainActor
 @Observable
 final class Store {
-    // Ürün kimliği → verilecek nakit (App Store Connect'te bu id'lerle tanımla)
+    // Ürün kimliği → verilecek nakit. ASC'de ZATEN TANIMLI 5 consumable (PWA'dan).
     static let cashFor: [String: Double] = [
-        "com.realvirtuality.hooder.cash.starter":  1_500_000,
-        "com.realvirtuality.hooder.cash.investor": 5_000_000,
-        "com.realvirtuality.hooder.cash.tycoon":  20_000_000,
-        "com.realvirtuality.hooder.cash.mogul":   75_000_000,
+        "app.realvirtuality.landlord.starter":   1_500_000,
+        "app.realvirtuality.landlord.investor":  5_000_000,
+        "app.realvirtuality.landlord.tycoon":   20_000_000,
+        "app.realvirtuality.landlord.mogul":    75_000_000,
+        "app.realvirtuality.landlord.empire":  250_000_000,
     ]
 
     var products: [Product] = []
