@@ -14,12 +14,11 @@ options:
 
 settings:
   base:
-    SWIFT_VERSION: "6.0"
+    SWIFT_VERSION: "5.0"             # Swift 5 dil modu (iOS 26 SDK + @Observable çalışır)
     MARKETING_VERSION: "1.0"
-    CURRENT_PROJECT_VERSION: "1"
-    # DEVELOPMENT_TEAM: ABCDE12345   # ← kendi Apple Team ID'n (imzalama için)
+    CURRENT_PROJECT_VERSION: "1"      # CI build sırasında timestamp ile değiştirilir
+    DEVELOPMENT_TEAM: SZF4T3P583
     TARGETED_DEVICE_FAMILY: "1"       # yalnız iPhone
-    SWIFT_STRICT_CONCURRENCY: complete
 
 packages:
   MapboxMaps:
@@ -39,11 +38,13 @@ targets:
           - "*.xml"
           - ".gitignore"
           - "LICENSE"
+          - "fastlane"
+          - ".github"
     dependencies:
       - package: MapboxMaps
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.realvirtuality.hooder
+        PRODUCT_BUNDLE_IDENTIFIER: app.realvirtuality.landlord
         GENERATE_INFOPLIST_FILE: "YES"
         # Konum İZNİ ANAHTARI YOK → GPS sorulmaz.
         INFOPLIST_KEY_UILaunchScreen_Generation: "YES"

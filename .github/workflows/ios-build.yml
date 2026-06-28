@@ -1,0 +1,106 @@
+name: iOS Native → TestFlight
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode sürümü
+        run: sudo xcode-select -s /Applications/Xcode_26.app || sudo xcode-select -s /Applications/Xcode.app
+
+      - name: XcodeGen kur
+        run: brew install xcodegen
+
+      - name: Mapbox token'ları (netrc + Info.plist) + build numarası
+        env:
+          MAPBOX_PUBLIC_TOKEN:   ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+          MAPBOX_DOWNLOAD_TOKEN: ${{ secrets.MAPBOX_DOWNLOAD_TOKEN }}
+        run: |
+          # SDK indirmesi için secret download token
+          printf 'machine api.mapbox.com\n  login mapbox\n  password %s\n' "$MAPBOX_DOWNLOAD_TOKEN" > ~/.netrc
+          chmod 600 ~/.netrc
+          # Public token'ı project.yml'e göm
+          sed -i '' "s|pk.PUBLIC_TOKEN_BURAYA|$MAPBOX_PUBLIC_TOKEN|" project.yml
+          # Build numarası (PWA'daki en yüksek build'i geçen 14 hane)
+          BUILD=$(date -u +%Y%m%d%H%M%S)
+          sed -i '' "s|CURRENT_PROJECT_VERSION: \"1\"|CURRENT_PROJECT_VERSION: \"$BUILD\"|" project.yml
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+
+      - name: Xcode projesi üret
+        run: xcodegen generate
+
+      - name: Distribution sertifikasını içe aktar
+        env:
+          CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          CERT_PASS:   ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+        run: |
+          echo "$CERT_BASE64" | base64 --decode -o /tmp/dist.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import /tmp/dist.p12 -k build.keychain -P "$CERT_PASS" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Fastlane beta (build + TestFlight)
+        env:
+          ASC_KEY_ID:      ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID:   ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: bundle exec fastlane beta
+
+      # Build'i iç test grubuna ata (TestFlight'ta hemen görünsün)
+      - name: Build'i iç test grubuna ata
+        continue-on-error: true
+        env:
+          ASC_KEY_ID:      ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID:   ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          printf '%s' "$ASC_PRIVATE_KEY" > /tmp/asc.p8
+          node -e '
+            const {createSign}=require("crypto"), fs=require("fs");
+            const p8=fs.readFileSync("/tmp/asc.p8","utf8");
+            const APP="6776767786", GROUP="8efaee3a-4a69-41b0-b205-fd80c513051f";
+            const b64=o=>Buffer.from(JSON.stringify(o)).toString("base64").replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+            const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+            const tok=()=>{const now=Math.floor(Date.now()/1000);
+              const si=b64({alg:"ES256",kid:process.env.ASC_KEY_ID,typ:"JWT"})+"."+b64({iss:process.env.ASC_ISSUER_ID,iat:now,exp:now+600,aud:"appstoreconnect-v1"});
+              const s=createSign("SHA256");s.update(si);const der=s.sign(p8);
+              let o=2;const rl=der[o+1];o+=2;let r=der.slice(o,o+rl);o+=rl;o+=1;const sl=der[o];o+=1;let ss=der.slice(o,o+sl);
+              const pad=x=>{x=x[0]===0?x.slice(1):x;return Buffer.concat([Buffer.alloc(32-x.length),x])};
+              const jose=Buffer.concat([pad(r),pad(ss)]).toString("base64").replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_");
+              return {Authorization:"Bearer "+si+"."+jose,"Content-Type":"application/json"};};
+            (async()=>{
+              for(let i=0;i<30;i++){
+                const H=tok();
+                const j=await (await fetch(`https://api.appstoreconnect.apple.com/v1/builds?filter[app]=${APP}&sort=-uploadedDate&limit=1`,{headers:H})).json();
+                const b=j.data&&j.data[0];
+                if(b){const id=b.id;
+                  if(b.attributes.processingState==="VALID"){
+                    await fetch(`https://api.appstoreconnect.apple.com/v1/builds/${id}`,{method:"PATCH",headers:H,body:JSON.stringify({data:{type:"builds",id,attributes:{usesNonExemptEncryption:false}}})});
+                    await sleep(3000);
+                    const res=await fetch(`https://api.appstoreconnect.apple.com/v1/betaGroups/${GROUP}/relationships/builds`,{method:"POST",headers:H,body:JSON.stringify({data:[{type:"builds",id}]})});
+                    console.log("grup atama:",res.status); return;
+                  }
+                  console.log(`build ${b.attributes.version} durum=${b.attributes.processingState}, bekleniyor...`);
+                }
+                await sleep(30000);
+              }
+            })();
+          '
