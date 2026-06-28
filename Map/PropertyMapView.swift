@@ -88,7 +88,22 @@ struct PropertyMapView: UIViewRepresentable {
             let owned = parent.ownedIds
             index = Dictionary(props.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
 
-            let top = props.sorted { $0.price > $1.price }.prefix(parent.maxMarkers)
+            // ZOOM-BAZLI: yalnız GÖRÜNÜR coğrafi alandaki mülkler (projeksiyon değil →
+            // güvenilir). Yaklaşınca alan küçülür → oradaki yerel mülkler çıkar; uzaklaşınca
+            // geniş alanın en değerlileri. Böylece her zoom'da o bölgenin etiketleri görünür.
+            var pool = props
+            if let map {
+                let cam = map.mapboxMap.cameraState
+                let b = map.mapboxMap.coordinateBounds(for: CameraOptions(cameraState: cam))
+                let ne = b.northeast, sw = b.southwest
+                let dLat = (ne.latitude - sw.latitude) * 0.15, dLng = (ne.longitude - sw.longitude) * 0.15
+                let visible = props.filter {
+                    $0.lat <= ne.latitude + dLat && $0.lat >= sw.latitude - dLat &&
+                    $0.lng <= ne.longitude + dLng && $0.lng >= sw.longitude - dLng
+                }
+                if !visible.isEmpty { pool = visible }
+            }
+            let top = pool.sorted { $0.price > $1.price }.prefix(parent.maxMarkers)
             manager.annotations = top.map { p in
                 let isOwned = owned.contains(p.id)
                 let (img, key) = Self.pill(name: p.name, price: formatMoney(p.price),

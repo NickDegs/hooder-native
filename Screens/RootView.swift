@@ -20,7 +20,8 @@ struct RootView: View {
 
             // Harita-dışı ekranlar: alttan kayan cam panel (yumuşak geçiş)
             if tab != .map {
-                ScreenPanel(tab: tab, game: game, feed: feed, onSelect: { selected = $0 })
+                ScreenPanel(tab: tab, game: game, feed: feed, onSelect: { selected = $0 },
+                            onClose: { withAnimation(Motion.smooth) { tab = .map } })
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .zIndex(2)
             }
@@ -49,18 +50,35 @@ struct RootView: View {
     }
 }
 
-// Harita-dışı sekme içeriğini taşıyan cam panel
+// Harita-dışı sekme içeriğini taşıyan cam panel — başlıktan aşağı sürükle = kapat
 private struct ScreenPanel: View {
     let tab: AppTab
     var game: GameState
     var feed: PropertyFeed
     var onSelect: (Property) -> Void
+    var onClose: () -> Void
+    @State private var drag: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            Capsule().fill(.white.opacity(0.25)).frame(width: 38, height: 4).padding(.top, 10)
-            Text(L10n.shared.t(tab.titleKey)).font(.h3).foregroundStyle(Theme.text).padding(.vertical, 8)
-            Divider().background(.white.opacity(0.08))
+            // Sürükleme tutamacı + başlık (aşağı çek → kapat)
+            VStack(spacing: 0) {
+                Capsule().fill(.white.opacity(0.3)).frame(width: 40, height: 5).padding(.top, 10)
+                Text(L10n.shared.t(tab.titleKey)).font(.h3).foregroundStyle(Theme.text).padding(.vertical, 8)
+                Divider().background(.white.opacity(0.08))
+            }
+            .background(Color.white.opacity(0.001))   // boşluk da sürüklenebilsin
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 8)
+                    .onChanged { v in if v.translation.height > 0 { drag = v.translation.height } }
+                    .onEnded { v in
+                        if v.translation.height > 110 || v.predictedEndTranslation.height > 240 {
+                            onClose()
+                        }
+                        withAnimation(Motion.snappy) { drag = 0 }
+                    }
+            )
             Group {
                 switch tab {
                 case .market:    MarketScreen(game: game, feed: feed, onSelect: onSelect)
@@ -77,5 +95,7 @@ private struct ScreenPanel: View {
         .liquidGlass(cornerRadius: Theme.rXl, interactive: false)
         .padding(.top, 96)
         .ignoresSafeArea(edges: .bottom)
+        .offset(y: drag)
+        .animation(.interactiveSpring(response: 0.3), value: drag)
     }
 }
