@@ -39,6 +39,11 @@ struct RootView: View {
                 .presentationBackground(.ultraThinMaterial)
         }
         .onAppear { feed.start() }
+        .task {
+            // Açılışta VIP entitlement kontrolü (abonelik aktifse anında uygulanır)
+            Store.shared.onVIP = { active in game.isVIP = active }
+            await Store.shared.refreshVIP()
+        }
         .onReceive(tick) { _ in game.tickIncome(1) }
         .preferredColorScheme(.dark)
     }

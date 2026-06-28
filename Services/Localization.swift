@@ -57,6 +57,12 @@ final class L10n {
         "low_funds":     ["tr":"Yetersiz bakiye","en":"Insufficient funds","es":"Fondos insuficientes","fr":"Fonds insuffisants","de":"Unzureichendes Guthaben","it":"Fondi insufficienti","pt":"Saldo insuficiente","ru":"Недостаточно средств","ar":"رصيد غير كافٍ","zh":"余额不足","ja":"残高不足","ko":"잔액 부족","az":"Balans kifayət etmir","uk":"Недостатньо коштів","fa":"موجودی ناکافی","hi":"अपर्याप्त शेष"],
         "price":         ["tr":"Fiyat","en":"Price","es":"Precio","fr":"Prix","de":"Preis","it":"Prezzo","pt":"Preço","ru":"Цена","ar":"السعر","zh":"价格","ja":"価格","ko":"가격","az":"Qiymət","uk":"Ціна","fa":"قیمت","hi":"मूल्य"],
         "income_day":    ["tr":"Gelir/gün","en":"Income/day","es":"Ingreso/día","fr":"Revenu/jour","de":"Einkommen/Tag","it":"Reddito/giorno","pt":"Renda/dia","ru":"Доход/день","ar":"دخل/يوم","zh":"收入/天","ja":"収入/日","ko":"수입/일","az":"Gəlir/gün","uk":"Дохід/день","fa":"درآمد/روز","hi":"आय/दिन"],
+        "loading":       ["tr":"Yükleniyor…","en":"Loading…"],
+        "vip_title":     ["tr":"VIP Üyelik","en":"VIP Membership"],
+        "vip_active":    ["tr":"✓ Aktif","en":"✓ Active"],
+        "vip_perk_income":   ["tr":"+%25 günlük gelir","en":"+25% daily income"],
+        "vip_perk_badge":    ["tr":"VIP rozeti + altın tema","en":"VIP badge + gold theme"],
+        "vip_perk_exclusive":["tr":"Özel & erken mülkler","en":"Exclusive & early properties"],
     ]
 }
 

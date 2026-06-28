@@ -9,6 +9,11 @@ final class GameState {
     var cash: Double = 15_000_000
     private(set) var ownedIds: Set<String> = []
     private(set) var pendingIncome: Double = 0
+    var isVIP: Bool = false          // aktif VIP aboneliği (StoreKit entitlement'tan)
+
+    // VIP avantajları
+    var incomeMultiplier: Double { isVIP ? 1.25 : 1.0 }   // +%25 günlük gelir
+    var vipDiscount: Double { isVIP ? 0.90 : 1.0 }        // VIP: %10 indirim
 
     private let store = UserDefaults.standard
 
@@ -22,16 +27,19 @@ final class GameState {
 
     func isOwned(_ id: String) -> Bool { ownedIds.contains(id) }
 
-    /// Ownership premium: ne kadar çok mülk → fiyatlar hafif artar (talep)
+    /// Ownership premium: ne kadar çok mülk → fiyatlar hafif artar (talep). VIP %10 indirim.
     func livePrice(_ p: Property) -> Double {
         let premium = 1 + Double(ownedIds.count) * 0.012
-        return (p.price * premium).rounded()
+        return (p.price * premium * vipDiscount).rounded()
     }
+
+    /// VIP olmayan bir oyuncu vipOnly mülkü alamaz
+    func canBuy(_ p: Property) -> Bool { !p.vipOnly || isVIP }
 
     @discardableResult
     func buy(_ p: Property) -> Bool {
         let cost = livePrice(p)
-        guard !isOwned(p.id), cash >= cost else { return false }
+        guard canBuy(p), !isOwned(p.id), cash >= cost else { return false }
         cash -= cost
         ownedIds.insert(p.id)
         save()
@@ -42,7 +50,7 @@ final class GameState {
     func tickIncome(_ dt: TimeInterval) {
         let perSec = PropertyFeed.shared.all
             .filter { ownedIds.contains($0.id) }
-            .reduce(0) { $0 + $1.incomePerDay } / 86_400
+            .reduce(0) { $0 + $1.incomePerDay } / 86_400 * incomeMultiplier
         pendingIncome += perSec * dt
         if pendingIncome >= 1 {
             cash += pendingIncome.rounded(.down)

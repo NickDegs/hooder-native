@@ -10,7 +10,17 @@ struct HUDBar: View {
             HStack(spacing: 8) {
                 Text("🏙️").font(.system(size: 20))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Hooder").font(.h3).foregroundStyle(Theme.text)
+                    HStack(spacing: 5) {
+                        Text("Hooder").font(.h3).foregroundStyle(Theme.text)
+                        if game.isVIP {
+                            Label("VIP", systemImage: "crown.fill")
+                                .labelStyle(.titleAndIcon)
+                                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.black)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Theme.gold, in: Capsule())
+                        }
+                    }
                     Text("Sv.\(game.level) \(L10n.shared.t("investor"))").font(.label).foregroundStyle(Theme.textMuted)
                 }
             }

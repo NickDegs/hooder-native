@@ -59,7 +59,7 @@ final class PropertyFeed {
             ("Nişantaşı Butik",    .retail, 28_000_000, 3),
             ("Şişli Ofis Kulesi",  .office, 54_000_000, 4),
         ]
-        return names.enumerated().map { i, n in
+        var list = names.enumerated().map { i, n in
             let dl = Double(i)
             let lat = base.lat + sin(dl) * 0.012 + dl * 0.0015
             let lng = base.lng + cos(dl) * 0.014 - dl * 0.0011
@@ -69,5 +69,17 @@ final class PropertyFeed {
                 city: "İstanbul", category: n.1, price: n.2,
                 incomePerDay: (n.2 * 0.0009).rounded(), prestige: n.3, lat: lat, lng: lng)
         }
+        // ── VIP'e özel prestijli mülkler (yalnız VIP üyeler alabilir) ──────────
+        let vip: [(String, PropertyCategory, Double, Int, String, Double, Double)] = [
+            ("Boğaz Yalısı 👑", .landmark, 480_000_000, 5, "Bebek", 41.0776, 29.0434),
+            ("Çamlıca Kulesi Loca 👑", .landmark, 320_000_000, 5, "Üsküdar", 41.0276, 29.0686),
+            ("Maslak 42 Penthouse 👑", .office, 260_000_000, 5, "Maslak", 41.1110, 29.0190),
+        ]
+        list += vip.map { v in
+            Property(id: "vip_\(v.0.hashValue)", name: v.0, neighborhood: v.4, city: "İstanbul",
+                     category: v.1, price: v.2, incomePerDay: (v.2 * 0.0011).rounded(),
+                     prestige: v.3, lat: v.5, lng: v.6, vipOnly: true)
+        }
+        return list
     }
 }

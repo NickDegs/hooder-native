@@ -13,7 +13,7 @@ struct PropertyRowView: View {
         let owned = game.isOwned(property.id)
         let price = game.livePrice(property)
         let canAfford = game.cash >= price
-        GlassCard {
+        GlassCard(tint: property.vipOnly ? Theme.gold : .clear) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("\(property.category.emoji) \(property.category.title.uppercased())")
@@ -41,7 +41,12 @@ struct PropertyRowView: View {
     }
 
     @ViewBuilder private func buyControl(owned: Bool, price: Double, canAfford: Bool) -> some View {
-        if owned {
+        if property.vipOnly && !game.isVIP {
+            Label("VIP", systemImage: "crown.fill")
+                .font(.captionB).foregroundStyle(Theme.gold)
+                .padding(.horizontal, 12).padding(.vertical, 7)
+                .background(Theme.gold.opacity(0.16), in: Capsule())
+        } else if owned {
             Label(L10n.shared.t("owned"), systemImage: "checkmark.seal.fill")
                 .font(.captionB).foregroundStyle(Theme.green)
                 .padding(.horizontal, 12).padding(.vertical, 7)

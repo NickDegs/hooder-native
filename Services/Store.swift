@@ -8,6 +8,8 @@ import Observation
 @MainActor
 @Observable
 final class Store {
+    static let shared = Store()
+
     // Ürün kimliği → verilecek nakit. ASC'de ZATEN TANIMLI 5 consumable (PWA'dan).
     static let cashFor: [String: Double] = [
         "app.realvirtuality.landlord.starter":   1_500_000,
@@ -17,10 +19,19 @@ final class Store {
         "app.realvirtuality.landlord.empire":  250_000_000,
     ]
 
-    var products: [Product] = []
+    // VIP abonelik ürün kimlikleri (ASC'de tanımlı auto-renewable)
+    static let vipIds: Set<String> = [
+        "app.realvirtuality.landlord.vip.monthly",
+        "app.realvirtuality.landlord.vip.yearly",
+    ]
+
+    var products: [Product] = []        // consumable nakit paketleri
+    var vipProducts: [Product] = []     // VIP abonelikleri
     var purchasingId: String?
     var lastCredited: Double?
+    var isVIP: Bool = false
     var onCredit: ((Double) -> Void)?
+    var onVIP: ((Bool) -> Void)?
 
     private var updatesTask: Task<Void, Never>?
     private var credited: Set<String> = []   // çift kredi engeli (transaction id)
@@ -29,9 +40,25 @@ final class Store {
 
     func load() async {
         do {
-            let p = try await Product.products(for: Array(Self.cashFor.keys))
-            products = p.sorted { $0.price < $1.price }
-        } catch { products = [] }
+            let ids = Array(Self.cashFor.keys) + Array(Self.vipIds)
+            let p = try await Product.products(for: ids)
+            products    = p.filter { Self.cashFor[$0.id] != nil }.sorted { $0.price < $1.price }
+            vipProducts = p.filter { Self.vipIds.contains($0.id) }.sorted { $0.price < $1.price }
+        } catch { products = []; vipProducts = [] }
+        await refreshVIP()
+    }
+
+    /// Aktif VIP aboneliği var mı? (StoreKit 2 currentEntitlements)
+    func refreshVIP() async {
+        var active = false
+        for await result in Transaction.currentEntitlements {
+            if case .verified(let t) = result, Self.vipIds.contains(t.productID),
+               t.revocationDate == nil, (t.expirationDate ?? .distantFuture) > Date() {
+                active = true
+            }
+        }
+        isVIP = active
+        onVIP?(active)
     }
 
     func buy(_ product: Product) async {
@@ -43,6 +70,7 @@ final class Store {
                 if case .verified(let transaction) = verification {
                     credit(transaction)
                     await transaction.finish()
+                    await refreshVIP()        // VIP aboneliği ise entitlement güncellensin
                 }
             case .userCancelled, .pending: break
             @unknown default: break
@@ -63,6 +91,7 @@ final class Store {
                 if case .verified(let t) = update {
                     await self?.creditOnMain(t)
                     await t.finish()
+                    await self?.refreshVIP()
                 }
             }
         }
