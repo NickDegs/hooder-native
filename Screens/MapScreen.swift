@@ -68,7 +68,7 @@ struct MapScreen: View {
                 Spacer()
             }
             .frame(maxWidth: .infinity)
-            .padding(.top, 96)   // HUD'un altına gelsin
+            .padding(.top, 132)   // HUD çubuğunun altına gelsin (çakışma yok)
 
             // 📍 Konumuma git butonu (sağ alt, tab bar'ın üstünde)
             Button {

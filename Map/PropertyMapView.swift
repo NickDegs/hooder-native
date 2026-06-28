@@ -33,9 +33,9 @@ struct PropertyMapView: UIViewRepresentable {
         map.ornaments.options.scaleBar.visibility = .hidden
 
         let manager = map.annotations.makePointAnnotationManager()
-        manager.iconAllowOverlap = true       // pin noktaları hep görünsün
-        manager.textAllowOverlap = false      // fiyat metni çakışmasın (native declutter)
-        manager.iconIgnorePlacement = true    // ikon yerleşimi metni engellemesin
+        // Cam pill'ler üst üste binmesin → Mapbox collision declutter eder (değerli olan kazanır).
+        manager.iconAllowOverlap = false
+        manager.iconIgnorePlacement = false
 
         let c = context.coordinator
         c.map = map
@@ -91,16 +91,12 @@ struct PropertyMapView: UIViewRepresentable {
             let top = props.sorted { $0.price > $1.price }.prefix(parent.maxMarkers)
             manager.annotations = top.map { p in
                 let isOwned = owned.contains(p.id)
+                let (img, key) = Self.pill(name: p.name, price: formatMoney(p.price),
+                                           emoji: p.category.emoji, owned: isOwned,
+                                           accent: Self.accent(p.category))
                 var ann = PointAnnotation(id: p.id, coordinate: p.coordinate)
-                ann.image = .init(image: Self.pin(owned: isOwned, category: p.category),
-                                  name: isOwned ? "pin-own" : "pin-\(p.category.rawValue)")
+                ann.image = .init(image: img, name: key)   // metin pill'in İÇİNDE (ayrı textField yok)
                 ann.iconAnchor = .bottom
-                ann.textField = "\(p.category.emoji) \(formatMoney(p.price))"
-                ann.textOffset = [0, 1.0]
-                ann.textColor = StyleColor(isOwned ? UIColor.systemGreen : .white)
-                ann.textHaloColor = StyleColor(.black)
-                ann.textHaloWidth = 1.3
-                ann.textSize = 11
                 ann.symbolSortKey = -p.price   // değerli mülk öncelikli (collision'da üstte)
                 ann.tapHandler = { [weak self] _ in
                     guard let self, let prop = self.index[p.id] else { return false }
@@ -110,33 +106,67 @@ struct PropertyMapView: UIViewRepresentable {
             }
         }
 
-        // Görsel cache: kategori×owned için tek seferlik üretim (yalnız main thread'de kullanılır)
-        nonisolated(unsafe) static var imageCache: [String: UIImage] = [:]
-        static func pin(owned: Bool, category: PropertyCategory) -> UIImage {
-            let key = "\(owned ? "own" : category.rawValue)"
-            if let cached = imageCache[key] { return cached }
-            let color: UIColor = owned ? .systemGreen : {
-                switch category {
-                case .hotel: return .systemPurple
-                case .office: return .systemBlue
-                case .retail: return .systemOrange
-                case .landmark: return .systemPink
-                case .park: return .systemGreen
-                case .stadium: return .systemTeal
-                case .building: return .systemGray
-                }
-            }()
-            let size = CGSize(width: 22, height: 22)
-            let img = UIGraphicsImageRenderer(size: size).image { ctx in
-                let r = CGRect(x: 3, y: 3, width: 16, height: 16)
-                ctx.cgContext.setFillColor(color.withAlphaComponent(0.92).cgColor)
-                ctx.cgContext.fillEllipse(in: r)
-                ctx.cgContext.setStrokeColor(UIColor.white.cgColor)
-                ctx.cgContext.setLineWidth(2)
-                ctx.cgContext.strokeEllipse(in: r)
+        static func accent(_ category: PropertyCategory) -> UIColor {
+            switch category {
+            case .hotel: return .systemPurple
+            case .office: return .systemBlue
+            case .retail: return .systemOrange
+            case .landmark: return .systemPink
+            case .park: return .systemGreen
+            case .stadium: return .systemTeal
+            case .building: return UIColor(white: 0.7, alpha: 1)
             }
-            imageCache[key] = img
-            return img
+        }
+
+        // ── Cam pill (emoji + isim + fiyat) — eski PWA marker görünümü ────────────
+        // Tek görsel olarak baked → symbol layer'da ANINDA, GPU, declutter'lı.
+        nonisolated(unsafe) static var pillCache: [String: UIImage] = [:]
+        static func pill(name: String, price: String, emoji: String, owned: Bool, accent: UIColor) -> (img: UIImage, key: String) {
+            let shortName = name.count > 16 ? String(name.prefix(15)) + "…" : name
+            let key = "\(owned ? "o" : "n")|\(shortName)|\(price)"
+            if let c = pillCache[key] { return (c, key) }
+            if pillCache.count > 800 { pillCache.removeAll() }   // bellek koruması
+
+            let nameFont  = UIFont.systemFont(ofSize: 12, weight: .bold)
+            let priceFont = UIFont.systemFont(ofSize: 12, weight: .heavy)
+            let emojiFont = UIFont.systemFont(ofSize: 15)
+            let nameAttr: [NSAttributedString.Key: Any]  = [.font: nameFont,  .foregroundColor: UIColor.white]
+            let priceAttr: [NSAttributedString.Key: Any] = [.font: priceFont, .foregroundColor: owned ? UIColor.systemGreen : UIColor(white: 1, alpha: 0.95)]
+            let emojiAttr: [NSAttributedString.Key: Any] = [.font: emojiFont]
+
+            let nameSz  = (shortName as NSString).size(withAttributes: nameAttr)
+            let priceSz = (price as NSString).size(withAttributes: priceAttr)
+            let emojiSz = (emoji as NSString).size(withAttributes: emojiAttr)
+
+            let padH: CGFloat = 9, padV: CGFloat = 6, gap: CGFloat = 6, lineGap: CGFloat = 1
+            let textW = max(nameSz.width, priceSz.width)
+            let w = ceil(padH + emojiSz.width + gap + textW + padH)
+            let h = ceil(padV + nameSz.height + lineGap + priceSz.height + padV)
+            let size = CGSize(width: w, height: h)
+
+            let fmt = UIGraphicsImageRendererFormat(); fmt.opaque = false; fmt.scale = UIScreen.main.scale
+            let img = UIGraphicsImageRenderer(size: size, format: fmt).image { ctx in
+                let rect = CGRect(origin: .zero, size: size).insetBy(dx: 0.5, dy: 0.5)
+                let path = UIBezierPath(roundedRect: rect, cornerRadius: 11)
+                // koyu cam zemin
+                (owned ? UIColor(red: 0.05, green: 0.16, blue: 0.10, alpha: 0.90)
+                       : UIColor(red: 0.05, green: 0.07, blue: 0.13, alpha: 0.88)).setFill()
+                path.fill()
+                // üst parıltı (cam hissi)
+                let sheen = UIBezierPath(roundedRect: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height*0.5), cornerRadius: 11)
+                UIColor(white: 1, alpha: 0.06).setFill(); sheen.fill()
+                // kenar (accent)
+                (owned ? UIColor.systemGreen.withAlphaComponent(0.65) : accent.withAlphaComponent(0.55)).setStroke()
+                path.lineWidth = 1; path.stroke()
+                // emoji
+                (emoji as NSString).draw(at: CGPoint(x: padH, y: (h - emojiSz.height)/2), withAttributes: emojiAttr)
+                // isim + fiyat
+                let tx = padH + emojiSz.width + gap
+                (shortName as NSString).draw(at: CGPoint(x: tx, y: padV), withAttributes: nameAttr)
+                (price as NSString).draw(at: CGPoint(x: tx, y: padV + nameSz.height + lineGap), withAttributes: priceAttr)
+            }
+            pillCache[key] = img
+            return (img, key)
         }
     }
 }
