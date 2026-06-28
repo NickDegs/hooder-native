@@ -13,6 +13,9 @@ struct MapScreen: View {
     @State private var currentCenter = CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)
     @State private var flyTarget: CLLocationCoordinate2D?
     @State private var locating = false
+    @State private var search = ""
+    @State private var searching = false
+    @State private var searchMsg: String?
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -31,18 +34,41 @@ struct MapScreen: View {
             )
             .ignoresSafeArea()
 
-            // İndirme rozeti (üstte)
-            VStack {
+            // Üst: yer arama çubuğu + indirme rozeti
+            VStack(spacing: 8) {
+                // 🔎 Yer ara (şehir/ülke/semt) → oraya uç + mülkleri yükle
+                HStack(spacing: 8) {
+                    if searching { ProgressView().tint(.white).scaleEffect(0.8) }
+                    else { Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted) }
+                    TextField(L10n.shared.t("search_place"), text: $search)
+                        .foregroundStyle(Theme.text).font(.bodyB)
+                        .submitLabel(.search)
+                        .onSubmit { runSearch() }
+                    if !search.isEmpty {
+                        Button { search = ""; searchMsg = nil } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.textMuted)
+                        }
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 11)
+                .liquidGlass(cornerRadius: Theme.rMd, interactive: false)
+                .padding(.horizontal, 14)
+
+                if let searchMsg {
+                    Text(searchMsg).font(.captionB).foregroundStyle(Theme.textSub)
+                        .padding(.horizontal, 12).padding(.vertical, 5)
+                        .liquidGlass(cornerRadius: 99, interactive: false)
+                }
                 if case .downloading(let p) = downloader.status {
                     Label("Harita indiriliyor… \(Int(p*100))%", systemImage: "arrow.down.circle")
                         .font(.captionB).foregroundStyle(Theme.text)
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .liquidGlass(cornerRadius: 99, interactive: false)
-                        .padding(.top, 150)
                 }
                 Spacer()
             }
             .frame(maxWidth: .infinity)
+            .padding(.top, 96)   // HUD'un altına gelsin
 
             // 📍 Konumuma git butonu (sağ alt, tab bar'ın üstünde)
             Button {
@@ -77,6 +103,25 @@ struct MapScreen: View {
             }
         }
         .animation(Motion.smooth, value: downloaderProgress)
+    }
+
+    // Yer ara → koordinat bul → oraya uç + o bölgenin mülklerini yükle
+    private func runSearch() {
+        let q = search.trimmingCharacters(in: .whitespaces)
+        guard q.count >= 2 else { return }
+        searching = true; searchMsg = nil
+        Task {
+            let hit = await PropertyService.shared.geocode(q)
+            await MainActor.run { searching = false }
+            guard let hit else { await MainActor.run { searchMsg = "\"\(q)\" bulunamadı" }; return }
+            await MainActor.run {
+                flyTarget = hit.coord
+                currentCenter = hit.coord
+                searchMsg = "📍 \(hit.place)"
+            }
+            let added = await PropertyService.shared.fetchArea(lat: hit.coord.latitude, lng: hit.coord.longitude)
+            if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
+        }
     }
 
     private var downloaderProgress: Double {

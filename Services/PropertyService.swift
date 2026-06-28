@@ -28,6 +28,24 @@ actor PropertyService {
 
     func allRegistered() -> [Property] { Array(registry.values) }
 
+    // ── Yer arama (forward geocode) — herhangi bir şehir/ülke/semt → koordinat ────
+    func geocode(_ query: String) async -> (coord: CLLocationCoordinate2D, place: String)? {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !token.isEmpty, q.count >= 2,
+              let enc = q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        let url = URL(string: "https://api.mapbox.com/geocoding/v5/mapbox.places/\(enc).json?types=place,locality,neighborhood,district,region,country,address&limit=5&language=\(lang)&access_token=\(token)")!
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let geo = try JSONDecoder().decode(FwdGeo.self, from: data)
+            // Şehir/semt seviyesini ülke/bölgeye tercih et (ör. "Roma" → şehir, ülke değil)
+            let cityTypes: Set<String> = ["address","neighborhood","locality","place","district"]
+            let f = geo.features.first { !Set($0.place_type).isDisjoint(with: cityTypes) } ?? geo.features.first
+            guard let f, f.center.count >= 2 else { return nil }
+            return (CLLocationCoordinate2D(latitude: f.center[1], longitude: f.center[0]), f.place_name)
+        } catch { return nil }
+    }
+
     private func alreadyFetched(_ lat: Double, _ lng: Double) -> Bool {
         fetchedAreas.contains { hypot($0.lat - lat, $0.lng - lng) < 0.0035 } // ~350 m
     }
@@ -136,3 +154,6 @@ private struct GeoFeature: Decodable {
     let text: String; let place_type: [String]; let properties: GP?
     struct GP: Decodable { let short_code: String? }
 }
+// Forward geocode (yer arama) yanıtı
+private struct FwdGeo: Decodable { let features: [FwdFeat] }
+private struct FwdFeat: Decodable { let place_name: String; let place_type: [String]; let center: [Double] }

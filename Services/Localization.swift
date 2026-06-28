@@ -58,6 +58,7 @@ final class L10n {
         "price":         ["tr":"Fiyat","en":"Price","es":"Precio","fr":"Prix","de":"Preis","it":"Prezzo","pt":"Preço","ru":"Цена","ar":"السعر","zh":"价格","ja":"価格","ko":"가격","az":"Qiymət","uk":"Ціна","fa":"قیمت","hi":"मूल्य"],
         "income_day":    ["tr":"Gelir/gün","en":"Income/day","es":"Ingreso/día","fr":"Revenu/jour","de":"Einkommen/Tag","it":"Reddito/giorno","pt":"Renda/dia","ru":"Доход/день","ar":"دخل/يوم","zh":"收入/天","ja":"収入/日","ko":"수입/일","az":"Gəlir/gün","uk":"Дохід/день","fa":"درآمد/روز","hi":"आय/दिन"],
         "loading":       ["tr":"Yükleniyor…","en":"Loading…"],
+        "search_place":  ["tr":"Yer ara: şehir, ülke, semt…","en":"Search place: city, country…","es":"Buscar lugar…","fr":"Chercher un lieu…","de":"Ort suchen…","it":"Cerca luogo…","pt":"Buscar local…","ru":"Поиск места…","ar":"ابحث عن مكان…","zh":"搜索地点…","ja":"場所を検索…","ko":"장소 검색…","az":"Yer axtar…","uk":"Пошук місця…","fa":"جستجوی مکان…","hi":"स्थान खोजें…"],
         "vip_title":     ["tr":"VIP Üyelik","en":"VIP Membership"],
         "vip_active":    ["tr":"✓ Aktif","en":"✓ Active"],
         "vip_perk_income":   ["tr":"+%25 günlük gelir","en":"+25% daily income"],
