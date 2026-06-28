@@ -10,6 +10,7 @@ struct LiquidGlass: ViewModifier {
     var cornerRadius: CGFloat = Theme.rLg
     var tint: Color = .clear
     var interactive: Bool = true
+    var sweep: Bool = true     // mercek yanması — uzun listelerde kapat (perf)
 
     func body(content: Content) -> some View {
         content
@@ -28,7 +29,7 @@ struct LiquidGlass: ViewModifier {
                         )
                 }
             }
-            .overlay { SpecularSweep(cornerRadius: cornerRadius) }   // ← mercek yanması
+            .overlay { if sweep { SpecularSweep(cornerRadius: cornerRadius) } }   // ← mercek yanması
             .overlay {
                 // Cam üst kenar specular highlight (parlak ince çizgi)
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -75,8 +76,9 @@ struct SpecularSweep: View {
 }
 
 extension View {
-    /// Liquid Glass yüzeyi + mercek yanması tek satırda.
-    func liquidGlass(cornerRadius: CGFloat = Theme.rLg, tint: Color = .clear, interactive: Bool = true) -> some View {
-        modifier(LiquidGlass(cornerRadius: cornerRadius, tint: tint, interactive: interactive))
+    /// Liquid Glass yüzeyi + (opsiyonel) mercek yanması tek satırda.
+    func liquidGlass(cornerRadius: CGFloat = Theme.rLg, tint: Color = .clear,
+                     interactive: Bool = true, sweep: Bool = true) -> some View {
+        modifier(LiquidGlass(cornerRadius: cornerRadius, tint: tint, interactive: interactive, sweep: sweep))
     }
 }

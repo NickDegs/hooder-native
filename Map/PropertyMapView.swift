@@ -129,7 +129,11 @@ struct PropertyMapView: UIViewRepresentable {
             }
         }
 
+        // Görsel cache: kategori×owned için tek seferlik üretim (yalnız main thread'de kullanılır)
+        nonisolated(unsafe) static var imageCache: [String: UIImage] = [:]
         static func pin(owned: Bool, category: PropertyCategory) -> UIImage {
+            let key = "\(owned ? "own" : category.rawValue)"
+            if let cached = imageCache[key] { return cached }
             let color: UIColor = owned ? .systemGreen : {
                 switch category {
                 case .hotel: return .systemPurple
@@ -142,7 +146,7 @@ struct PropertyMapView: UIViewRepresentable {
                 }
             }()
             let size = CGSize(width: 22, height: 22)
-            return UIGraphicsImageRenderer(size: size).image { ctx in
+            let img = UIGraphicsImageRenderer(size: size).image { ctx in
                 let r = CGRect(x: 3, y: 3, width: 16, height: 16)
                 ctx.cgContext.setFillColor(color.withAlphaComponent(0.92).cgColor)
                 ctx.cgContext.fillEllipse(in: r)
@@ -150,6 +154,8 @@ struct PropertyMapView: UIViewRepresentable {
                 ctx.cgContext.setLineWidth(2)
                 ctx.cgContext.strokeEllipse(in: r)
             }
+            imageCache[key] = img
+            return img
         }
     }
 }

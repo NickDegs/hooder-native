@@ -32,29 +32,29 @@ struct PropertyDetailSheet: View {
             }
 
             HStack(spacing: 10) {
-                stat("Fiyat", formatMoney(price), Theme.text)
-                stat("Gelir/gün", "+\(formatMoney(property.incomePerDay))", Theme.green)
+                stat(L10n.shared.t("price"), formatMoney(price), Theme.text)
+                stat(L10n.shared.t("income_day"), "+\(formatMoney(property.incomePerDay))", Theme.green)
                 stat("ROI", String(format: "%.1f%%", property.roiPercent), Theme.gold)
             }
 
             Spacer()
 
             if owned {
-                Label("Bu mülk senin", systemImage: "checkmark.seal.fill")
+                Label(L10n.shared.t("owned_msg"), systemImage: "checkmark.seal.fill")
                     .font(.bodyB).foregroundStyle(Theme.green)
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                     .background(Theme.green.opacity(0.14), in: RoundedRectangle(cornerRadius: Theme.rLg))
             } else if confirming {
                 HStack(spacing: 10) {
-                    GlassButton(tint: .gray, action: { withAnimation(Motion.snappy) { confirming = false } }) { Text("İptal") }
+                    GlassButton(tint: .gray, action: { withAnimation(Motion.snappy) { confirming = false } }) { Text(L10n.shared.t("cancel")) }
                     GlassButton(tint: Theme.green, action: {
                         if game.buy(property) { dismiss() }
-                    }) { Text("Onayla — \(formatMoney(price))") }
+                    }) { Text("\(L10n.shared.t("confirm")) — \(formatMoney(price))") }
                 }
             } else {
                 GlassButton(tint: canAfford ? Theme.primary : .gray, action: {
                     withAnimation(Motion.snappy) { confirming = true }
-                }) { Text(canAfford ? "Satın Al — \(formatMoney(price))" : "Yetersiz bakiye") }
+                }) { Text(canAfford ? "\(L10n.shared.t("buy")) — \(formatMoney(price))" : L10n.shared.t("low_funds")) }
                 .disabled(!canAfford)
             }
         }

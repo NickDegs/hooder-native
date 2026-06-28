@@ -1,0 +1,54 @@
+# XcodeGen yapılandırması → tek komutla .xcodeproj üretir.
+#   brew install xcodegen
+#   xcodegen generate
+#   open Hooder.xcodeproj
+#
+# NOT: Mapbox SDK indirmesi için ~/.netrc'de secret download token (Downloads:Read)
+# olmalı. Public token aşağıda MBXAccessToken'a yazılır (kendi pk.* token'ınla değiştir).
+name: Hooder
+options:
+  bundleIdPrefix: com.realvirtuality
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # DEVELOPMENT_TEAM: ABCDE12345   # ← kendi Apple Team ID'n (imzalama için)
+    TARGETED_DEVICE_FAMILY: "1"       # yalnız iPhone
+    SWIFT_STRICT_CONCURRENCY: complete
+
+packages:
+  MapboxMaps:
+    url: https://github.com/mapbox/mapbox-maps-ios
+    from: "11.0.0"
+
+targets:
+  Hooder:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: .
+        excludes:
+          - "*.md"
+          - "*.yml"
+          - "*.xml"
+          - ".gitignore"
+          - "LICENSE"
+    dependencies:
+      - package: MapboxMaps
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.realvirtuality.hooder
+        GENERATE_INFOPLIST_FILE: "YES"
+        # Konum İZNİ ANAHTARI YOK → GPS sorulmaz.
+        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "YES"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: "NO"
+        # Mapbox public token (kendi pk.* token'ınla değiştir; xcconfig'e taşımak daha güvenli):
+        INFOPLIST_KEY_MBXAccessToken: "pk.PUBLIC_TOKEN_BURAYA"

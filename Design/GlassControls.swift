@@ -5,13 +5,14 @@ import UIKit
 struct GlassCard<Content: View>: View {
     var cornerRadius: CGFloat = Theme.rLg
     var tint: Color = .clear
+    var sweep: Bool = false      // liste kartı → varsayılan kapalı (perf); öne çıkan kart açabilir
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         content()
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .liquidGlass(cornerRadius: cornerRadius, tint: tint, interactive: false)
+            .liquidGlass(cornerRadius: cornerRadius, tint: tint, interactive: false, sweep: sweep)
     }
 }
 

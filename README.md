@@ -38,12 +38,24 @@ animasyonlar, **offline uydu harita** + **canlı mülk pin'leri**. Konum izni **
 - Tüm string'lerin %100 lokalizasyonu (şu an çekirdek arayüz çevrildi).
 - Forex/Döviz ekranı, açık artırma oluşturma, push bildirim, gerçek backend uçları.
 
-## Kurulum (Xcode 26+)
-1. **SPM**: `https://github.com/mapbox/mapbox-maps-ios` → Up to Next Major **11.0.0**.
-2. **Token**: `Info.plist` → `MBXAccessToken` (public). Secret download token (Downloads:Read)
-   → `~/.netrc` (bkz. `Info.plist.snippet.xml`).
-3. **Konum anahtarı EKLEME** (GPS sorulmaz).
-4. Tüm `.swift` dosyalarını hedefe ekle, `HooderApp` `@main` → çalıştır.
+## Kurulum (Xcode 26+) — tek komut
+```bash
+brew install xcodegen          # bir kez
+xcodegen generate              # project.yml → Hooder.xcodeproj
+open Hooder.xcodeproj
+```
+1. **Secret download token** (Downloads:Read) → `~/.netrc` (Mapbox SDK indirmesi için):
+   ```
+   machine api.mapbox.com
+     login mapbox
+     password sk.SECRET_DOWNLOAD_TOKEN
+   ```
+2. **Public token**: `project.yml` içinde `INFOPLIST_KEY_MBXAccessToken: pk.…` değerini kendi token'ınla değiştir.
+3. (Opsiyonel) `project.yml` → `DEVELOPMENT_TEAM` = kendi Apple Team ID (cihaza imzalı kurmak için).
+4. Çalıştır. **Konum izni sorulmaz**, harita açılışta offline indirilir.
+
+> XcodeGen kullanmak istemezsen: yeni iOS App projesi aç, tüm `.swift` + `Assets.xcassets`
+> dosyalarını ekle, SPM'den `mapbox-maps-ios` 11.0.0 ekle, Info.plist'e `MBXAccessToken` koy.
 
 ## Dosya haritası
 ```
