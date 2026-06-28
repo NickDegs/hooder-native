@@ -49,7 +49,9 @@ targets:
         # Konum İZNİ ANAHTARI YOK → GPS sorulmaz.
         INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "YES"
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        # iPhone yalnız portre; iPad doğrulaması için iPad'e tüm yönelimler (iPhone-only app)
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         ITSAppUsesNonExemptEncryption: "NO"
         # Mapbox public token (kendi pk.* token'ınla değiştir; xcconfig'e taşımak daha güvenli):
         INFOPLIST_KEY_MBXAccessToken: "pk.PUBLIC_TOKEN_BURAYA"
