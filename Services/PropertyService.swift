@@ -10,10 +10,35 @@ actor PropertyService {
 
     private var registry: [String: Property] = [:]
     private var fetchedAreas: [(lat: Double, lng: Double)] = []
+    private var hydrated = false
+    private let regKey = "hooder_props_v1", areaKey = "hooder_areas_v1"
 
     private var token: String {
         Bundle.main.object(forInfoDictionaryKey: "MBXAccessToken") as? String ?? ""
     }
+
+    // ── Kalıcı cache: bir kez indirilen mülkler diske kaydedilir → açılışta/revisit'te
+    //    etiketler ANINDA görünür (yeni tilequery yok). Canlı bilgi tıklayınca (detay) gelir.
+    private func hydrate() {
+        guard !hydrated else { return }
+        hydrated = true
+        let d = UserDefaults.standard
+        if let data = d.data(forKey: regKey), let arr = try? JSONDecoder().decode([Property].self, from: data) {
+            for p in arr { registry[p.id] = p }
+        }
+        if let a = d.array(forKey: areaKey) as? [[Double]] {
+            for x in a where x.count == 2 { fetchedAreas.append((x[0], x[1])) }
+        }
+    }
+    private func persist() {
+        let d = UserDefaults.standard
+        let arr = Array(Array(registry.values).suffix(3000))
+        if let data = try? JSONEncoder().encode(arr) { d.set(data, forKey: regKey) }
+        d.set(fetchedAreas.suffix(500).map { [$0.lat, $0.lng] }, forKey: areaKey)
+    }
+
+    /// Açılışta haritaya ANINDA basmak için diskteki tüm cache'li mülkler.
+    func cachedProperties() -> [Property] { hydrate(); return Array(registry.values) }
 
     // Kategori eşlemesi (POI class → oyun kategorisi + temel fiyat + prestij)
     private static let classMap: [String: (cat: PropertyCategory, base: Double, prestige: Int)] = [
@@ -53,6 +78,7 @@ actor PropertyService {
     /// Koordinatın çevresindeki gerçek mülkleri çek (yeni eklenenleri döndürür).
     @discardableResult
     func fetchArea(lat: Double, lng: Double) async -> [Property] {
+        hydrate()
         guard !token.isEmpty, !alreadyFetched(lat, lng) else { return [] }
         fetchedAreas.append((lat, lng))
         if fetchedAreas.count > 400 { fetchedAreas.removeFirst(fetchedAreas.count - 400) }
@@ -67,6 +93,7 @@ actor PropertyService {
             guard let p = convert(f, area: area) else { continue }
             if registry[p.id] == nil { registry[p.id] = p; added.append(p) }
         }
+        if !added.isEmpty { persist() }   // yeni indirilenleri diske kaydet (kalıcı cache)
         return added
     }
 

@@ -120,6 +120,11 @@ struct MapScreen: View {
         }
         .onAppear {
             downloader.ensureOffline(center: start)
+            // Diskteki cache'li mülkleri ANINDA bas (etiketler önceden indirilmiş gibi gelir)
+            Task {
+                let cached = await PropertyService.shared.cachedProperties()
+                if !cached.isEmpty { await MainActor.run { feed.ingest(cached) } }
+            }
             location.onFix = { c in
                 locating = false
                 flyTarget = c
