@@ -41,8 +41,8 @@ jobs:
           PHONE_DT=$(xcrun simctl list devicetypes -j | python3 -c "import sys,json;d=[x for x in json.load(sys.stdin)['devicetypes'] if 'iPhone' in x['name'] and 'Pro Max' in x['name']];print(d[-1]['identifier'])")
           IPAD_DT=$(xcrun simctl list devicetypes -j | python3 -c "import sys,json;d=[x for x in json.load(sys.stdin)['devicetypes'] if 'iPad Pro' in x['name'] and ('13' in x['name'] or '12.9' in x['name'])];print(d[-1]['identifier'])")
           echo "runtime=$RUNTIME phone=$PHONE_DT ipad=$IPAD_DT"
-          # ASC locale -> iOS AppleLanguages kodu
-          declare -A LANG=( [en-US]=en [tr]=tr [es-ES]=es [fr-FR]=fr [de-DE]=de [it]=it [pt-PT]=pt-PT [ru]=ru [ar-SA]=ar [zh-Hans]=zh-Hans [ja]=ja [ko]=ko [uk]=uk [hi]=hi )
+          # ASC locale:iOS dil kodu (bash 3.2 — associative array YOK)
+          PAIRS="en-US:en tr:tr es-ES:es fr-FR:fr de-DE:de it:it pt-PT:pt-PT ru:ru ar-SA:ar zh-Hans:zh-Hans ja:ja ko:ko uk:uk hi:hi"
           TABS="map market forex store"
           mkdir -p shots
           shoot() {
@@ -50,8 +50,8 @@ jobs:
             UDID=$(xcrun simctl create "$DEV_NAME" "$DT" "$RUNTIME")
             xcrun simctl boot "$UDID"; sleep 8
             xcrun simctl install "$UDID" "$APP"
-            for loc in "${!LANG[@]}"; do
-              code=${LANG[$loc]}
+            for pair in $PAIRS; do
+              loc=${pair%%:*}; code=${pair##*:}
               mkdir -p "shots/$loc"
               for tab in $TABS; do
                 xcrun simctl terminate "$UDID" $BUNDLE 2>/dev/null || true
