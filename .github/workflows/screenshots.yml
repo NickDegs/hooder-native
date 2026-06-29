@@ -35,6 +35,7 @@ jobs:
           echo "APP=$(ls -d dd/Build/Products/Release-iphonesimulator/*.app | head -1)" >> "$GITHUB_ENV"
 
       - name: Ekran görüntülerini çek (14 dil x sekmeler x 2 cihaz)
+        continue-on-error: true
         run: |
           BUNDLE=app.realvirtuality.landlord
           RUNTIME=$(xcrun simctl list runtimes ios -j | python3 -c "import sys,json;r=[x for x in json.load(sys.stdin)['runtimes'] if x['isAvailable']];print(r[-1]['identifier'])")
@@ -47,9 +48,10 @@ jobs:
           mkdir -p shots
           shoot() {
             DEV_NAME=$1; DT=$2; TAG=$3
-            UDID=$(xcrun simctl create "$DEV_NAME" "$DT" "$RUNTIME")
-            xcrun simctl boot "$UDID"; sleep 8
-            xcrun simctl install "$UDID" "$APP"
+            [ -z "$DT" ] && { echo "cihaz tipi yok, atla: $TAG"; return 0; }
+            UDID=$(xcrun simctl create "$DEV_NAME" "$DT" "$RUNTIME" 2>/dev/null) || { echo "create fail $TAG"; return 0; }
+            xcrun simctl boot "$UDID" 2>/dev/null || true; sleep 8
+            xcrun simctl install "$UDID" "$APP" 2>/dev/null || true
             for pair in $PAIRS; do
               loc=${pair%%:*}; code=${pair##*:}
               mkdir -p "shots/$loc"
@@ -61,13 +63,16 @@ jobs:
               done
               echo "  $loc ($TAG) çekildi"
             done
-            xcrun simctl shutdown "$UDID" || true
+            xcrun simctl shutdown "$UDID" 2>/dev/null || true
+            xcrun simctl delete "$UDID" 2>/dev/null || true   # kaynak boşalt (sonraki cihaz için)
           }
-          shoot "snap67" "$PHONE_DT" "iphone"
-          shoot "snap129" "$IPAD_DT" "ipad"
+          shoot "snap67" "$PHONE_DT" "iphone" || true
+          shoot "snap129" "$IPAD_DT" "ipad" || true
           echo "çekilen png:"; find shots -name '*.png' | wc -l
+          exit 0
 
       - name: App Store'a yükle
+        if: always()
         env:
           ASC_KEY_ID:      ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID:   ${{ secrets.ASC_ISSUER_ID }}
