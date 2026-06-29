@@ -16,9 +16,19 @@ struct MapScreen: View {
     @State private var search = ""
     @State private var searching = false
     @State private var searchMsg: String?
+    @State private var showAreaList = false
+
+    // Bulunduğun bölgenin mülkleri (merkeze yakın), değere göre — Liste butonu için
+    private var nearby: [Property] {
+        feed.all.sorted { distSq($0) < distSq($1) }.prefix(80).sorted { $0.price > $1.price }
+    }
+    private func distSq(_ p: Property) -> Double {
+        let dx = p.lat - currentCenter.latitude, dy = p.lng - currentCenter.longitude
+        return dx*dx + dy*dy
+    }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .top) {
             PropertyMapView(
                 center: start, zoom: 13.5,
                 properties: feed.all, ownedIds: game.ownedIds,
@@ -69,8 +79,23 @@ struct MapScreen: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 132)   // HUD çubuğunun altına gelsin (çakışma yok)
-
-            // 📍 Konumuma git butonu (sağ alt, tab bar'ın üstünde)
+        }
+        // ── Sol alt: bulunduğun bölgenin LİSTESİ ──────────────────────────────
+        .overlay(alignment: .bottomLeading) {
+            Button { showAreaList = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "list.bullet")
+                    Text(L10n.shared.t("list")).font(.bodyB)
+                }
+                .foregroundStyle(Theme.primary)
+                .padding(.horizontal, 16).frame(height: 52)
+                .liquidGlass(cornerRadius: 99)
+            }
+            .buttonStyle(.plain)
+            .padding(.leading, 16).padding(.bottom, 118)
+        }
+        // ── Sağ alt: konumuma git ─────────────────────────────────────────────
+        .overlay(alignment: .bottomTrailing) {
             Button {
                 locating = true
                 location.requestAndLocate()
@@ -83,8 +108,15 @@ struct MapScreen: View {
                     .opacity(locating ? 0.6 : 1)
             }
             .buttonStyle(.plain)
-            .padding(.trailing, 16)
-            .padding(.bottom, 100)
+            .padding(.trailing, 16).padding(.bottom, 118)
+        }
+        .sheet(isPresented: $showAreaList) {
+            AreaListSheet(game: game, properties: nearby, onSelect: { p in
+                showAreaList = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { onSelect(p) }
+            })
+            .presentationDetents([.medium, .large])
+            .presentationBackground(.ultraThinMaterial)
         }
         .onAppear {
             downloader.ensureOffline(center: start)
