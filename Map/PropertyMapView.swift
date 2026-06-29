@@ -31,6 +31,8 @@ struct PropertyMapView: UIViewRepresentable {
         let map = MapView(frame: .zero, mapInitOptions: opts)
         map.location.options.puckType = nil
         map.ornaments.options.scaleBar.visibility = .hidden
+        map.ornaments.options.compass.visibility = .hidden   // pusula HUD arkasında kalmasın
+        map.ornaments.options.logo.margins = .init(x: 8, y: 8)
 
         let manager = map.annotations.makePointAnnotationManager()
         // Daha ÇOK etiket görünsün (gezinti boş görünmesin): üst üste binmeye izin ver.
@@ -49,7 +51,13 @@ struct PropertyMapView: UIViewRepresentable {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { c.reapply() }
         }.store(in: &c.cancelables)
 
-        // Kamera durunca: bölge verisi + marker yeniden cap/declutter
+        // Kamera HAREKET EDERKEN (throttle'lı) → etiketleri anında yeniden çiz (gecikme yok)
+        map.mapboxMap.onCameraChanged.observe { _ in
+            let now = Date().timeIntervalSinceReferenceDate
+            if now - c.lastReapply > 0.1 { c.lastReapply = now; c.reapply() }
+        }.store(in: &c.cancelables)
+
+        // Kamera durunca: o bölgenin gerçek mülklerini yükle + son bir reapply
         map.mapboxMap.onMapIdle.observe { [weak map] _ in
             guard let center = map?.mapboxMap.cameraState.center else { return }
             c.parent.onRegionChange?(center)
@@ -76,6 +84,7 @@ struct PropertyMapView: UIViewRepresentable {
         var manager: PointAnnotationManager?
         var cancelables = Set<AnyCancelable>()
         var lastFly: CLLocationCoordinate2D?
+        var lastReapply: Double = 0
         private var index: [String: Property] = [:]
 
         init(_ parent: PropertyMapView) { self.parent = parent }
