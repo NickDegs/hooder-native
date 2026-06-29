@@ -33,9 +33,10 @@ struct PropertyMapView: UIViewRepresentable {
         map.ornaments.options.scaleBar.visibility = .hidden
 
         let manager = map.annotations.makePointAnnotationManager()
-        // Cam pill'ler üst üste binmesin → Mapbox collision declutter eder (değerli olan kazanır).
-        manager.iconAllowOverlap = false
-        manager.iconIgnorePlacement = false
+        // Daha ÇOK etiket görünsün (gezinti boş görünmesin): üst üste binmeye izin ver.
+        // Kompakt pill + değer-öncelikli sıralama ile yine de okunur kalır.
+        manager.iconAllowOverlap = true
+        manager.iconIgnorePlacement = true
 
         let c = context.coordinator
         c.map = map
@@ -106,9 +107,9 @@ struct PropertyMapView: UIViewRepresentable {
             let top = pool.sorted { $0.price > $1.price }.prefix(parent.maxMarkers)
             manager.annotations = top.map { p in
                 let isOwned = owned.contains(p.id)
-                let (img, key) = Self.pill(name: p.name, price: formatMoney(p.price),
-                                           emoji: p.category.emoji, owned: isOwned,
-                                           accent: Self.accent(p.category))
+                let isRival = !isOwned && Rivals.owner(of: p) != nil
+                let (img, key) = Self.pill(price: formatMoney(p.price), emoji: p.category.emoji,
+                                           owned: isOwned, rival: isRival, accent: Self.accent(p.category))
                 var ann = PointAnnotation(id: p.id, coordinate: p.coordinate)
                 ann.image = .init(image: img, name: key)   // metin pill'in İÇİNDE (ayrı textField yok)
                 ann.iconAnchor = .bottom
@@ -133,52 +134,42 @@ struct PropertyMapView: UIViewRepresentable {
             }
         }
 
-        // ── Cam pill (emoji + isim + fiyat) — eski PWA marker görünümü ────────────
-        // Tek görsel olarak baked → symbol layer'da ANINDA, GPU, declutter'lı.
+        // ── Kompakt cam pill (emoji + fiyat, tek satır) — yoğunlukta okunur ───────
+        // Tek görsel baked → symbol layer'da ANINDA, GPU. Detay tıklayınca açılır.
         nonisolated(unsafe) static var pillCache: [String: UIImage] = [:]
-        static func pill(name: String, price: String, emoji: String, owned: Bool, accent: UIColor) -> (img: UIImage, key: String) {
-            let shortName = name.count > 16 ? String(name.prefix(15)) + "…" : name
-            let key = "\(owned ? "o" : "n")|\(shortName)|\(price)"
+        static func pill(price: String, emoji: String, owned: Bool, rival: Bool, accent: UIColor) -> (img: UIImage, key: String) {
+            let key = "\(owned ? "o" : rival ? "r" : "n")|\(emoji)|\(price)"
             if let c = pillCache[key] { return (c, key) }
-            if pillCache.count > 800 { pillCache.removeAll() }   // bellek koruması
+            if pillCache.count > 1200 { pillCache.removeAll() }
 
-            let nameFont  = UIFont.systemFont(ofSize: 12, weight: .bold)
             let priceFont = UIFont.systemFont(ofSize: 12, weight: .heavy)
-            let emojiFont = UIFont.systemFont(ofSize: 15)
-            let nameAttr: [NSAttributedString.Key: Any]  = [.font: nameFont,  .foregroundColor: UIColor.white]
-            let priceAttr: [NSAttributedString.Key: Any] = [.font: priceFont, .foregroundColor: owned ? UIColor.systemGreen : UIColor(white: 1, alpha: 0.95)]
+            let emojiFont = UIFont.systemFont(ofSize: 13)
+            let priceColor: UIColor = owned ? .systemGreen : rival ? .systemOrange : UIColor(white: 1, alpha: 0.96)
+            let priceAttr: [NSAttributedString.Key: Any] = [.font: priceFont, .foregroundColor: priceColor]
             let emojiAttr: [NSAttributedString.Key: Any] = [.font: emojiFont]
 
-            let nameSz  = (shortName as NSString).size(withAttributes: nameAttr)
             let priceSz = (price as NSString).size(withAttributes: priceAttr)
             let emojiSz = (emoji as NSString).size(withAttributes: emojiAttr)
-
-            let padH: CGFloat = 9, padV: CGFloat = 6, gap: CGFloat = 6, lineGap: CGFloat = 1
-            let textW = max(nameSz.width, priceSz.width)
-            let w = ceil(padH + emojiSz.width + gap + textW + padH)
-            let h = ceil(padV + nameSz.height + lineGap + priceSz.height + padV)
+            let padH: CGFloat = 8, padV: CGFloat = 5, gap: CGFloat = 4
+            let w = ceil(padH + emojiSz.width + gap + priceSz.width + padH)
+            let h = ceil(padV + max(emojiSz.height, priceSz.height) + padV)
             let size = CGSize(width: w, height: h)
 
             let fmt = UIGraphicsImageRendererFormat(); fmt.opaque = false; fmt.scale = UIScreen.main.scale
             let img = UIGraphicsImageRenderer(size: size, format: fmt).image { ctx in
                 let rect = CGRect(origin: .zero, size: size).insetBy(dx: 0.5, dy: 0.5)
-                let path = UIBezierPath(roundedRect: rect, cornerRadius: 11)
-                // koyu cam zemin
+                let path = UIBezierPath(roundedRect: rect, cornerRadius: 9)
                 (owned ? UIColor(red: 0.05, green: 0.16, blue: 0.10, alpha: 0.90)
-                       : UIColor(red: 0.05, green: 0.07, blue: 0.13, alpha: 0.88)).setFill()
+                       : UIColor(red: 0.05, green: 0.07, blue: 0.13, alpha: 0.86)).setFill()
                 path.fill()
-                // üst parıltı (cam hissi)
-                let sheen = UIBezierPath(roundedRect: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height*0.5), cornerRadius: 11)
+                let sheen = UIBezierPath(roundedRect: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height*0.5), cornerRadius: 9)
                 UIColor(white: 1, alpha: 0.06).setFill(); sheen.fill()
-                // kenar (accent)
-                (owned ? UIColor.systemGreen.withAlphaComponent(0.65) : accent.withAlphaComponent(0.55)).setStroke()
+                (owned ? UIColor.systemGreen.withAlphaComponent(0.7)
+                       : rival ? UIColor.systemOrange.withAlphaComponent(0.6)
+                       : accent.withAlphaComponent(0.5)).setStroke()
                 path.lineWidth = 1; path.stroke()
-                // emoji
                 (emoji as NSString).draw(at: CGPoint(x: padH, y: (h - emojiSz.height)/2), withAttributes: emojiAttr)
-                // isim + fiyat
-                let tx = padH + emojiSz.width + gap
-                (shortName as NSString).draw(at: CGPoint(x: tx, y: padV), withAttributes: nameAttr)
-                (price as NSString).draw(at: CGPoint(x: tx, y: padV + nameSz.height + lineGap), withAttributes: priceAttr)
+                (price as NSString).draw(at: CGPoint(x: padH + emojiSz.width + gap, y: (h - priceSz.height)/2), withAttributes: priceAttr)
             }
             pillCache[key] = img
             return (img, key)

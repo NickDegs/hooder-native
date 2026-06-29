@@ -46,6 +46,14 @@ struct PropertyRowView: View {
                 .font(.captionB).foregroundStyle(Theme.gold)
                 .padding(.horizontal, 12).padding(.vertical, 7)
                 .background(Theme.gold.opacity(0.16), in: Capsule())
+        } else if !owned && game.rivalOwned(property) {
+            // Rakip elinde → detayda teklif yolla
+            Button { onSelect(property) } label: {
+                Label(L10n.shared.t("offer"), systemImage: "hands.sparkles.fill")
+                    .font(.captionB).foregroundStyle(.black)
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(Theme.gold, in: Capsule())
+            }.buttonStyle(.plain)
         } else if owned {
             Label(L10n.shared.t("owned"), systemImage: "checkmark.seal.fill")
                 .font(.captionB).foregroundStyle(Theme.green)

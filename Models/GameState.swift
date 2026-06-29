@@ -33,8 +33,24 @@ final class GameState {
         return (p.price * premium * vipDiscount).rounded()
     }
 
-    /// VIP olmayan bir oyuncu vipOnly mülkü alamaz
-    func canBuy(_ p: Property) -> Bool { !p.vipOnly || isVIP }
+    /// Mülk başka bir oyuncunun (rakip) elinde mi? (oyuncu sahibi değilse)
+    func rivalOwned(_ p: Property) -> Bool { !isOwned(p.id) && Rivals.owner(of: p) != nil }
+
+    /// Doğrudan satın alınabilir mi? (VIP kilidi yok + rakip elinde değil)
+    func canBuy(_ p: Property) -> Bool { (!p.vipOnly || isVIP) && !rivalOwned(p) }
+
+    /// Rakibe teklif → kabul edilirse mülk devralınır. Kabul eşiği: fiyatın %15 üstü.
+    /// Dönüş: 0=yetersiz/geçersiz, 1=kabul (devralındı), 2=reddedildi
+    func makeOffer(_ p: Property, amount: Double) -> Int {
+        guard !isOwned(p.id), amount > 0 else { return 0 }
+        let floor = livePrice(p) * 1.15
+        if amount < floor { return 2 }            // düşük teklif → red
+        guard cash >= amount else { return 0 }     // bakiye yetmez
+        cash -= amount
+        ownedIds.insert(p.id)
+        save()
+        return 1
+    }
 
     @discardableResult
     func buy(_ p: Property) -> Bool {
