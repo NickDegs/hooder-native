@@ -1,6 +1,7 @@
 # Çekilen gerçek simulator ekran görüntülerini App Store'a yükler.
-# shots/<ascLocale>/iphone_<tab>.png -> APP_IPHONE_67 (1290x2796)
+# shots/<ascLocale>/iphone_<tab>.png -> APP_IPHONE_67 (1320x2868 — iPhone 17 / 6.9", 6.7" cihazlarda da geçerli)
 # shots/<ascLocale>/ipad_<tab>.png   -> APP_IPAD_PRO_3GEN_129 (2048x2732)
+# Not: Apple iPhone 6.9" için ayrı display type kullanmaz; APP_IPHONE_67 hem 6.7 hem 6.9 sunar.
 import os, time, glob, hashlib, jwt, requests
 from PIL import Image
 
@@ -9,7 +10,7 @@ key=open("/tmp/asc.p8").read()
 def H():
     return {"Authorization":"Bearer "+jwt.encode({"iss":ISS,"iat":int(time.time()),"exp":int(time.time())+1200,"aud":"appstoreconnect-v1"},key,algorithm="ES256",headers={"kid":KID}),"Content-Type":"application/json"}
 B="https://api.appstoreconnect.apple.com/v1"; VID="acdf535d-4d6e-4ded-ad40-bed7ab9db2a3"
-SIZES={"iphone":("APP_IPHONE_67",(1290,2796)),"ipad":("APP_IPAD_PRO_3GEN_129",(2048,2732))}
+SIZES={"iphone":("APP_IPHONE_67",(1320,2868)),"ipad":("APP_IPAD_PRO_3GEN_129",(2048,2732))}
 TAB_ORDER={"map":0,"market":1,"forex":2,"store":3,"portfolio":4}
 
 locs={l["attributes"]["locale"]: l["id"] for l in requests.get(B+f"/appStoreVersions/{VID}/appStoreVersionLocalizations?limit=50",headers=H()).json()["data"]}

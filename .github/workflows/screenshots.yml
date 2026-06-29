@@ -34,7 +34,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build | xcbeautify || xcodebuild -project Hooder.xcodeproj -scheme Hooder -configuration Release -sdk iphonesimulator -derivedDataPath dd -clonedSourcePackagesDirPath /tmp/spm CODE_SIGNING_ALLOWED=NO build
           echo "APP=$(ls -d dd/Build/Products/Release-iphonesimulator/*.app | head -1)" >> "$GITHUB_ENV"
 
-      - name: Ekran görüntülerini çek (14 dil x sekmeler x 2 cihaz)
+      - name: Ekran görüntülerini çek (14 dil x sekmeler, iPhone 17 / 6.9")
         continue-on-error: true
         run: |
           BUNDLE=app.realvirtuality.landlord
@@ -66,8 +66,8 @@ jobs:
             xcrun simctl shutdown "$UDID" 2>/dev/null || true
             xcrun simctl delete "$UDID" 2>/dev/null || true   # kaynak boşalt (sonraki cihaz için)
           }
-          shoot "snap67" "$PHONE_DT" "iphone" || true
-          shoot "snap129" "$IPAD_DT" "ipad" || true
+          shoot "snap69" "$PHONE_DT" "iphone" || true
+          # iPad çekimi YOK — oyun iPhone-only (TARGETED_DEVICE_FAMILY=1)
           echo "çekilen png:"; find shots -name '*.png' | wc -l
           exit 0
 
