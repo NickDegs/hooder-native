@@ -79,6 +79,12 @@ final class GameState {
         }
     }
 
+    /// VIP abonelik imzasını SUNUCUDA doğrulat (gelir çarpanı sunucuda uygulanır).
+    func proveVIP(jws: String) {
+        guard !jws.isEmpty, let req = walletReq("wallet/vip", "POST", ["jws": jws]) else { return }
+        Task { _ = try? await URLSession.shared.data(for: req); await syncWallet() }
+    }
+
     var level: Int { max(1, Int(log2(max(1, netWorth / 5_000_000))) + 1) }
 
     // Net değer: nakit + mülkler (canlı piyasa değeriyle) + döviz pozisyonları

@@ -49,6 +49,7 @@ struct RootView: View {
             Store.shared.onGrant = { jws in game.grantIAP(jws: jws) }
             // Açılışta VIP entitlement kontrolü (abonelik aktifse anında uygulanır)
             Store.shared.onVIP = { active in game.isVIP = active }
+            Store.shared.onVIPProof = { jws in game.proveVIP(jws: jws) }   // SUNUCU doğrular
             await Store.shared.refreshVIP()
         }
         .onReceive(tick) { _ in

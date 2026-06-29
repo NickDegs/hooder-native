@@ -33,6 +33,7 @@ final class Store {
     var onCredit: ((Double) -> Void)?
     var onVIP: ((Bool) -> Void)?
     var onGrant: ((String) -> Void)?      // imzalı işlem (jws) → sunucuda doğrulanıp kredilenir
+    var onVIPProof: ((String) -> Void)?   // VIP abonelik imzası (jws) → sunucuda doğrulanır (gelir çarpanı)
 
     private var updatesTask: Task<Void, Never>?
     private var credited: Set<String> = []   // çift kredi engeli (transaction id)
@@ -52,14 +53,17 @@ final class Store {
     /// Aktif VIP aboneliği var mı? (StoreKit 2 currentEntitlements)
     func refreshVIP() async {
         var active = false
+        var proofJWS: String?
         for await result in Transaction.currentEntitlements {
             if case .verified(let t) = result, Self.vipIds.contains(t.productID),
                t.revocationDate == nil, (t.expirationDate ?? .distantFuture) > Date() {
                 active = true
+                proofJWS = result.jwsRepresentation     // imzalı kanıt → sunucuda doğrulanacak
             }
         }
         isVIP = active
         onVIP?(active)
+        if let proofJWS { onVIPProof?(proofJWS) }        // SUNUCU otoriter VIP gelir çarpanı
     }
 
     func buy(_ product: Product) async {
