@@ -132,10 +132,13 @@ struct PropertyMapView: UIViewRepresentable {
         // ── Kompakt cam pill (emoji + fiyat, tek satır) — yoğunlukta okunur ───────
         // Tek görsel baked → symbol layer'da ANINDA, GPU. Detay tıklayınca açılır.
         nonisolated(unsafe) static var pillCache: [String: UIImage] = [:]
+        nonisolated(unsafe) static let pillLock = NSLock()        // cache thread-safe (çok thread'li erişimde çökme yok)
         static func pill(price: String, emoji: String, owned: Bool, rival: Bool, accent: UIColor) -> (img: UIImage, key: String) {
             let key = "\(owned ? "o" : rival ? "r" : "n")|\(emoji)|\(price)"
-            if let c = pillCache[key] { return (c, key) }
+            pillLock.lock()
+            if let c = pillCache[key] { pillLock.unlock(); return (c, key) }
             if pillCache.count > 1200 { pillCache.removeAll() }
+            pillLock.unlock()
 
             let priceFont = UIFont.systemFont(ofSize: 12, weight: .heavy)
             let emojiFont = UIFont.systemFont(ofSize: 13)
@@ -178,7 +181,7 @@ struct PropertyMapView: UIViewRepresentable {
                 (emoji as NSString).draw(at: CGPoint(x: padH, y: (h - emojiSz.height)/2), withAttributes: emojiAttr)
                 (price as NSString).draw(at: CGPoint(x: padH + emojiSz.width + gap, y: (h - priceSz.height)/2), withAttributes: priceAttr)
             }
-            pillCache[key] = img
+            pillLock.lock(); pillCache[key] = img; pillLock.unlock()
             return (img, key)
         }
     }

@@ -59,7 +59,7 @@ actor PropertyService {
         guard !token.isEmpty, q.count >= 2,
               let enc = q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
         let lang = Locale.current.language.languageCode?.identifier ?? "en"
-        let url = URL(string: "https://api.mapbox.com/geocoding/v5/mapbox.places/\(enc).json?types=place,locality,neighborhood,district,region,country,address&limit=5&language=\(lang)&access_token=\(token)")!
+        guard let url = URL(string: "https://api.mapbox.com/geocoding/v5/mapbox.places/\(enc).json?types=place,locality,neighborhood,district,region,country,address&limit=5&language=\(lang)&access_token=\(token)") else { return nil }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let geo = try JSONDecoder().decode(FwdGeo.self, from: data)
@@ -99,7 +99,8 @@ actor PropertyService {
 
     // ── Tilequery (POI + bina) ────────────────────────────────────────────────
     private func tilequery(lat: Double, lng: Double) async -> [TileFeature] {
-        let url = URL(string: "https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/tilequery/\(lng),\(lat).json?radius=1000&limit=50&dedupe=true&layers=poi_label,building&access_token=\(token)")!
+        guard lat.isFinite, lng.isFinite,
+              let url = URL(string: "https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/tilequery/\(lng),\(lat).json?radius=1000&limit=50&dedupe=true&layers=poi_label,building&access_token=\(token)") else { return [] }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             return try JSONDecoder().decode(TileResponse.self, from: data).features
@@ -109,7 +110,10 @@ actor PropertyService {
     // ── Reverse geocode (semt/şehir/ülke) ─────────────────────────────────────
     private func reverseGeocode(lat: Double, lng: Double) async -> AreaContext {
         let lang = Locale.current.language.languageCode?.identifier ?? "en"
-        let url = URL(string: "https://api.mapbox.com/geocoding/v5/mapbox.places/\(lng),\(lat).json?types=country,region,district,place,locality,neighborhood&language=\(lang)&access_token=\(token)")!
+        guard lat.isFinite, lng.isFinite,
+              let url = URL(string: "https://api.mapbox.com/geocoding/v5/mapbox.places/\(lng),\(lat).json?types=country,region,district,place,locality,neighborhood&language=\(lang)&access_token=\(token)") else {
+            return AreaContext(district: "Çevre", city: "Bölge", country: "")
+        }
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             let geo = try JSONDecoder().decode(GeoResponse.self, from: data)

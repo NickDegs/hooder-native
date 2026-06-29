@@ -22,7 +22,9 @@ final class L10n {
     init() {
         let saved = UserDefaults.standard.string(forKey: "lang")
         let sys = Locale.current.language.languageCode?.identifier ?? "en"
-        lang = Self.languages.contains(saved ?? "") ? saved! : (Self.languages.contains(sys) ? sys : "en")
+        if let saved, Self.languages.contains(saved) { lang = saved }
+        else if Self.languages.contains(sys)         { lang = sys }
+        else                                          { lang = "en" }
     }
 
     func t(_ key: String) -> String {
