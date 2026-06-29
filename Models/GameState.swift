@@ -80,6 +80,7 @@ final class GameState {
         let prev = fx[code] ?? FXPosition(units: 0, costUSD: 0)
         fx[code] = FXPosition(units: prev.units + usdAmount * rate, costUSD: prev.costUSD + usdAmount)
         cash -= usdAmount
+        EconomyService.shared.recordFxTrade(code: code, usd: usdAmount, buy: true)   // ortak kuru it
         save()
         return true
     }
@@ -91,6 +92,7 @@ final class GameState {
         let pl = usd - pos.costUSD
         fx[code] = nil
         cash += usd
+        EconomyService.shared.recordFxTrade(code: code, usd: usd, buy: false)         // ortak kuru it
         save()
         return pl
     }
