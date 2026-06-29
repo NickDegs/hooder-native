@@ -1,6 +1,11 @@
 import Foundation
 import Observation
 
+// Ortak ekonomi API anahtarı — derleme sırasında CI tarafından enjekte edilir
+// (placeholder public repoda kalır, gerçek anahtar GitHub secret'tan gelir).
+// Bu anahtar olmadan sunucu ekonomi uçlarına erişimi reddeder → dışarıdan kimse erişemez.
+enum AppSecret { static let hooderKey = "HOODER_APP_KEY_BURAYA" }
+
 // ── TEK DÜNYA EKONOMİSİ (client) ──────────────────────────────────────────────
 // Backend tüm ekonominin TEK kaynağı: piyasa endeksi + döviz kurları gerçek dünyadan
 // beslenir, oyuncu işlemleri hepsini iter. Bu servis ortak değeri çeker (sync) ve
@@ -38,9 +43,17 @@ final class EconomyService {
     }
     func stop() { timer?.invalidate(); timer = nil }
 
+    // Ekonomi uçlarına anahtarlı istek üret (X-Hooder-Key olmadan sunucu 401 verir)
+    private func authed(_ path: String) -> URLRequest {
+        var req = URLRequest(url: base.appendingPathComponent(path))
+        req.setValue(AppSecret.hooderKey, forHTTPHeaderField: "X-Hooder-Key")
+        req.timeoutInterval = 8
+        return req
+    }
+
     // Ortak ekonomiyi sunucudan çek (piyasa endeksi + GERÇEK döviz kurları, paylaşılan)
     func sync() async {
-        guard let (data, _) = try? await URLSession.shared.data(from: base.appendingPathComponent("economy")),
+        guard let (data, _) = try? await URLSession.shared.data(for: authed("economy")),
               let j = try? JSONDecoder().decode(EconResp.self, from: data) else { online = false; return }
         prevIndex = marketIndex; marketIndex = clampIdx(j.index)
         if let r = j.rates, !r.isEmpty { prevRates = rates; rates = r }
@@ -74,9 +87,9 @@ final class EconomyService {
 
     private func post(_ path: String, _ body: [String: Any], _ done: @escaping (Data?) -> Void) {
         Task {
-            var req = URLRequest(url: base.appendingPathComponent(path))
+            var req = authed(path)
             req.httpMethod = "POST"; req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.httpBody = try? JSONSerialization.data(withJSONObject: body); req.timeoutInterval = 8
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
             let data = try? await URLSession.shared.data(for: req).0
             done(data)
         }

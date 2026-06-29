@@ -30,12 +30,15 @@ jobs:
         env:
           MAPBOX_PUBLIC_TOKEN:   ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
           MAPBOX_DOWNLOAD_TOKEN: ${{ secrets.MAPBOX_DOWNLOAD_TOKEN }}
+          HOODER_APP_KEY:        ${{ secrets.HOODER_APP_KEY }}
         run: |
           # SDK indirmesi için secret download token
           printf 'machine api.mapbox.com\n  login mapbox\n  password %s\n' "$MAPBOX_DOWNLOAD_TOKEN" > ~/.netrc
           chmod 600 ~/.netrc
           # Public token'ı project.yml'e göm
           sed -i '' "s|pk.PUBLIC_TOKEN_BURAYA|$MAPBOX_PUBLIC_TOKEN|" project.yml
+          # Ekonomi API anahtarını binary'ye göm (placeholder public repoda kalır)
+          sed -i '' "s|HOODER_APP_KEY_BURAYA|$HOODER_APP_KEY|" Services/EconomyService.swift
           # Build numarası (PWA'daki en yüksek build'i geçen 14 hane)
           BUILD=$(date -u +%Y%m%d%H%M%S)
           sed -i '' "s|CURRENT_PROJECT_VERSION: \"1\"|CURRENT_PROJECT_VERSION: \"$BUILD\"|" project.yml
