@@ -24,19 +24,31 @@ final class EconomyService {
         ("CHF", "🇨🇭", "Frank"), ("CAD", "🇨🇦", "Kanada $"),
     ]
 
+    // Ortak ekonomi backend'i (tüm oyuncular AYNI marketIndex'i paylaşır)
+    private let base = URL(string: "https://realvirtuality.app/hooder-api")!
+    var online = false
     private var timer: Timer?
     private var seeded = false
+    private var ticks = 0
 
     func start() {
         guard timer == nil else { return }
         prevRates = rates
-        Task { await seed() }
-        // Her 3 sn'de canlı drift
+        Task { await seed(); await syncIndex() }
         timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
     }
     func stop() { timer?.invalidate(); timer = nil }
+
+    // Ortak piyasa endeksini sunucudan çek (paylaşılan, otoriter)
+    func syncIndex() async {
+        guard let (data, _) = try? await URLSession.shared.data(from: base.appendingPathComponent("economy")),
+              let j = try? JSONDecoder().decode(EconResp.self, from: data) else { online = false; return }
+        prevIndex = marketIndex
+        marketIndex = clampIdx(j.index)
+        online = true
+    }
 
     // Gerçek kurlarla tohumla (başarısızsa varsayılanlar kalır)
     private func seed() async {
@@ -50,22 +62,36 @@ final class EconomyService {
         seeded = true
     }
 
-    // Canlı drift: kurlar + piyasa endeksi küçük rastgele oynar
+    // Canlı drift: kurlar her zaman yerel oynar (görsel). marketIndex sunucudan ortak
+    // gelir (online); sunucu yoksa yerel drift'e düşer (offline-tolerant).
     private func tick() {
+        ticks += 1
         prevRates = rates
         for (k, v) in rates {
-            let d = Double.random(in: -0.004...0.004)   // ±%0.4
-            rates[k] = max(0.0001, v * (1 + d))
+            rates[k] = max(0.0001, v * (1 + Double.random(in: -0.004...0.004)))
         }
-        prevIndex = marketIndex
-        marketIndex = clampIdx(marketIndex * (1 + Double.random(in: -0.006...0.006)))
+        if online {
+            if ticks % 2 == 0 { Task { await syncIndex() } }      // ortak endeksi senkronla
+        } else {
+            prevIndex = marketIndex
+            marketIndex = clampIdx(marketIndex * (1 + Double.random(in: -0.006...0.006)))
+            if ticks % 3 == 0 { Task { await syncIndex() } }       // tekrar bağlanmayı dene
+        }
     }
 
-    // Oyuncu aksiyonu → ekonomiye baskı (büyük alım piyasayı ısıtır, satış soğutur)
+    // Oyuncu aksiyonu → ekonomiye baskı: anlık yerel + ORTAK havuza yolla (ekonomik savaş)
     func recordTrade(buy: Bool, magnitude: Double) {
         let push = min(0.025, magnitude / 400_000_000) * (buy ? 1 : -1)
         prevIndex = marketIndex
         marketIndex = clampIdx(marketIndex + push)
+        Task {
+            var req = URLRequest(url: base.appendingPathComponent("economy/trade"))
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try? JSONSerialization.data(withJSONObject: ["buy": buy, "magnitude": magnitude])
+            req.timeoutInterval = 8
+            _ = try? await URLSession.shared.data(for: req)
+        }
     }
 
     func change(_ code: String) -> Double {   // kurun son tick değişimi (%)
@@ -78,3 +104,4 @@ final class EconomyService {
 }
 
 struct ERAPILatest: Decodable { let rates: [String: Double] }
+struct EconResp: Decodable { let index: Double }

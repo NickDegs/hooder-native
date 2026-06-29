@@ -23,8 +23,7 @@ struct Auction: Decodable, Identifiable {
 final class BackendService {
     static let shared = BackendService()
 
-    // Kendi sunucu adresinle değiştir (örnek):
-    var baseURL = URL(string: "https://nickdegs.duckdns.org/hooder-api")!
+    var baseURL = URL(string: "https://realvirtuality.app/hooder-api")!
     var token: String?
 
     private(set) var leaders: [LeaderEntry] = []
