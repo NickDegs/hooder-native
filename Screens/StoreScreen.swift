@@ -103,6 +103,20 @@ struct StoreScreen: View {
                         }
                     }
                 }
+
+                // Apple 3.1.2 ZORUNLU: abonelik açıklaması + Gizlilik/Şartlar linkleri
+                VStack(spacing: 6) {
+                    Text(L10n.shared.t("sub_disclosure"))
+                        .font(.system(size: 10)).foregroundStyle(Theme.textMuted)
+                        .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 16) {
+                        Link(L10n.shared.t("privacy"), destination: URL(string: "https://realvirtuality.app/hooder-api/privacy")!)
+                        Link(L10n.shared.t("terms"), destination: URL(string: "https://realvirtuality.app/hooder-api/terms")!)
+                        Spacer()
+                    }
+                    .font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.primary)
+                }
+                .padding(.top, 6)
             }
         }
     }

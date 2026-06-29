@@ -76,6 +76,9 @@ final class L10n {
         "vip_perk_income":   ["tr":"+%25 günlük gelir","en":"+25% daily income"],
         "vip_perk_badge":    ["tr":"VIP rozeti + altın tema","en":"VIP badge + gold theme"],
         "vip_perk_exclusive":["tr":"Özel & erken mülkler","en":"Exclusive & early properties"],
+        "sub_disclosure":["tr":"Hooder VIP otomatik yenilenen bir aboneliktir. Ücret satın alma onayında Apple Kimliğine yansır; dönem bitiminden en az 24 saat önce iptal edilmezse otomatik yenilenir. Ayarlar → Apple Kimliği → Abonelikler'den istediğin zaman yönet/iptal et.","en":"Hooder VIP is an auto-renewable subscription. Payment is charged to your Apple ID at confirmation; it renews automatically unless canceled at least 24 hours before the period ends. Manage or cancel anytime in Settings → Apple ID → Subscriptions."],
+        "privacy":["tr":"Gizlilik Politikası","en":"Privacy Policy","es":"Privacidad","fr":"Confidentialité","de":"Datenschutz","it":"Privacy","pt":"Privacidade","ru":"Конфиденциальность","ar":"الخصوصية","zh":"隐私政策","ja":"プライバシー","ko":"개인정보","az":"Məxfilik","uk":"Конфіденційність","fa":"حریم خصوصی","hi":"गोपनीयता"],
+        "terms":["tr":"Kullanım Şartları","en":"Terms of Use","es":"Términos","fr":"Conditions","de":"Nutzungsbedingungen","it":"Termini","pt":"Termos","ru":"Условия","ar":"الشروط","zh":"使用条款","ja":"利用規約","ko":"이용약관","az":"İstifadə şərtləri","uk":"Умови","fa":"شرایط","hi":"शर्तें"],
     ]
 }
 
