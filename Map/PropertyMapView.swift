@@ -20,8 +20,8 @@ struct PropertyMapView: UIViewRepresentable {
     var onDense: ((Bool) -> Void)? = nil
     var flyTarget: CLLocationCoordinate2D? = nil   // "konumuma git" → buraya uç
 
-    // En değerli N mülk symbol layer'a verilir; Mapbox collision declutter eder.
-    private let maxMarkers = 150
+    // Symbol layer'a verilen mülk sayısı (Mapbox off-screen cull + collision yapar; yüksek olabilir).
+    private let maxMarkers = 1000
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -35,10 +35,10 @@ struct PropertyMapView: UIViewRepresentable {
         map.ornaments.options.logo.margins = .init(x: 8, y: 8)
 
         let manager = map.annotations.makePointAnnotationManager()
-        // Daha ÇOK etiket görünsün (gezinti boş görünmesin): üst üste binmeye izin ver.
-        // Kompakt pill + değer-öncelikli sıralama ile yine de okunur kalır.
-        manager.iconAllowOverlap = true
-        manager.iconIgnorePlacement = true
+        // Çakışma YOK: Mapbox'ın kendi collision'ı pill'leri üst üste bindirmez ve
+        // ZOOM'a göre gösterir (yaklaş→çok, uzaklaş→az/değerli). GPU'da akıcı, yanıp sönmez.
+        manager.iconAllowOverlap = false
+        manager.iconIgnorePlacement = false
 
         let c = context.coordinator
         c.map = map
@@ -51,13 +51,9 @@ struct PropertyMapView: UIViewRepresentable {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { c.reapply() }
         }.store(in: &c.cancelables)
 
-        // Kamera HAREKET EDERKEN (throttle'lı) → etiketleri anında yeniden çiz (gecikme yok)
-        map.mapboxMap.onCameraChanged.observe { _ in
-            let now = Date().timeIntervalSinceReferenceDate
-            if now - c.lastReapply > 0.1 { c.lastReapply = now; c.reapply() }
-        }.store(in: &c.cancelables)
-
-        // Kamera durunca: o bölgenin gerçek mülklerini yükle + son bir reapply
+        // Kamera durunca: o bölgenin gerçek mülklerini yükle (yeni veri gelince set değişir → reapply).
+        // Pan/zoom sırasında ETİKETLERİ MAPBOX kendisi gösterip gizler (collision) → yeniden kurmaya
+        // gerek yok, bu yüzden yanıp sönmez. reapply yalnız VERİ değişince çalışır (skip'li).
         map.mapboxMap.onMapIdle.observe { [weak map] _ in
             guard let center = map?.mapboxMap.cameraState.center else { return }
             c.parent.onRegionChange?(center)
@@ -89,38 +85,28 @@ struct PropertyMapView: UIViewRepresentable {
 
         init(_ parent: PropertyMapView) { self.parent = parent }
 
-        // NATIVE declutter: tüm mülkleri (değere göre en üst N) symbol layer'a ver,
-        // Mapbox'ın KENDİ collision'ı (textAllowOverlap=false) çakışmayı çözer. Projeksiyon/
-        // bounds hesabı YOK → ilk render'da da etiketler kesin görünür, GPU'da akıcı.
+        var lastSig = ""
+
+        // SABİT SET: tüm mülkleri (değere göre, cap'li) symbol layer'a bir kez ver. Pan/zoom'da
+        // Mapbox collision hangilerini göstereceğine kendi karar verir (yaklaş→çok, uzaklaş→az).
+        // Set yalnız VERİ değişince yeniden kurulur (skip'li) → yeniden çizim yok = YANIP SÖNME YOK.
         func reapply() {
             guard let manager else { return }
             let props = parent.properties
             let owned = parent.ownedIds
-            index = Dictionary(props.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-
-            // ZOOM-BAZLI: yalnız GÖRÜNÜR coğrafi alandaki mülkler (projeksiyon değil →
-            // güvenilir). Yaklaşınca alan küçülür → oradaki yerel mülkler çıkar; uzaklaşınca
-            // geniş alanın en değerlileri. Böylece her zoom'da o bölgenin etiketleri görünür.
-            var pool = props
-            if let map {
-                let cam = map.mapboxMap.cameraState
-                let b = map.mapboxMap.coordinateBounds(for: CameraOptions(cameraState: cam))
-                let ne = b.northeast, sw = b.southwest
-                let dLat = (ne.latitude - sw.latitude) * 0.15, dLng = (ne.longitude - sw.longitude) * 0.15
-                let visible = props.filter {
-                    $0.lat <= ne.latitude + dLat && $0.lat >= sw.latitude - dLat &&
-                    $0.lng <= ne.longitude + dLng && $0.lng >= sw.longitude - dLng
-                }
-                if !visible.isEmpty { pool = visible }
-            }
-            let top = pool.sorted { $0.price > $1.price }.prefix(parent.maxMarkers)
+            let top = props.sorted { $0.price > $1.price }.prefix(parent.maxMarkers)
+            // İmza: set (id'ler) + sahiplik değişmediyse yeniden kurma
+            let sig = "\(props.count)|\(owned.count)|\(top.first?.id ?? "")|\(top.last?.id ?? "")"
+            guard sig != lastSig else { return }
+            lastSig = sig
+            index = Dictionary(top.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
             manager.annotations = top.map { p in
                 let isOwned = owned.contains(p.id)
                 let isRival = !isOwned && Rivals.owner(of: p) != nil
                 let (img, key) = Self.pill(price: formatMoney(p.price), emoji: p.category.emoji,
                                            owned: isOwned, rival: isRival, accent: Self.accent(p.category))
                 var ann = PointAnnotation(id: p.id, coordinate: p.coordinate)
-                ann.image = .init(image: img, name: key)   // metin pill'in İÇİNDE (ayrı textField yok)
+                ann.image = .init(image: img, name: key)
                 ann.iconAnchor = .bottom
                 ann.symbolSortKey = -p.price   // değerli mülk öncelikli (collision'da üstte)
                 ann.tapHandler = { [weak self] _ in
@@ -166,17 +152,29 @@ struct PropertyMapView: UIViewRepresentable {
 
             let fmt = UIGraphicsImageRendererFormat(); fmt.opaque = false; fmt.scale = UIScreen.main.scale
             let img = UIGraphicsImageRenderer(size: size, format: fmt).image { ctx in
+                let cg = ctx.cgContext
                 let rect = CGRect(origin: .zero, size: size).insetBy(dx: 0.5, dy: 0.5)
-                let path = UIBezierPath(roundedRect: rect, cornerRadius: 9)
-                (owned ? UIColor(red: 0.05, green: 0.16, blue: 0.10, alpha: 0.90)
-                       : UIColor(red: 0.05, green: 0.07, blue: 0.13, alpha: 0.86)).setFill()
-                path.fill()
-                let sheen = UIBezierPath(roundedRect: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height*0.5), cornerRadius: 9)
-                UIColor(white: 1, alpha: 0.06).setFill(); sheen.fill()
-                (owned ? UIColor.systemGreen.withAlphaComponent(0.7)
-                       : rival ? UIColor.systemOrange.withAlphaComponent(0.6)
-                       : accent.withAlphaComponent(0.5)).setStroke()
+                let r: CGFloat = h / 2                          // tam yuvarlak uçlar (kapsül)
+                let path = UIBezierPath(roundedRect: rect, cornerRadius: r)
+                // Liquid glass: dikey gradyan (üst açık → alt koyu), yarı saydam
+                cg.saveGState(); path.addClip()
+                let cs = CGColorSpaceCreateDeviceRGB()
+                let top = owned ? UIColor(red:0.10,green:0.28,blue:0.18,alpha:0.78) : UIColor(red:0.16,green:0.20,blue:0.32,alpha:0.74)
+                let bot = owned ? UIColor(red:0.03,green:0.12,blue:0.07,alpha:0.92) : UIColor(red:0.03,green:0.05,blue:0.11,alpha:0.90)
+                if let g = CGGradient(colorsSpace: cs, colors: [top.cgColor, bot.cgColor] as CFArray, locations: [0,1]) {
+                    cg.drawLinearGradient(g, start: CGPoint(x:0,y:0), end: CGPoint(x:0,y:h), options: [])
+                }
+                // üst parıltı (cam highlight)
+                let sheen = UIBezierPath(roundedRect: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: rect.height*0.46), cornerRadius: r)
+                UIColor(white: 1, alpha: 0.12).setFill(); sheen.fill()
+                cg.restoreGState()
+                // parlak ince kenar (specular)
+                (owned ? UIColor.systemGreen.withAlphaComponent(0.85)
+                       : rival ? UIColor.systemOrange.withAlphaComponent(0.8)
+                       : UIColor(white:1,alpha:0.45)).setStroke()
                 path.lineWidth = 1; path.stroke()
+                // metin (gölgeli → her zeminde okunur)
+                cg.setShadow(offset: .zero, blur: 2.5, color: UIColor.black.withAlphaComponent(0.85).cgColor)
                 (emoji as NSString).draw(at: CGPoint(x: padH, y: (h - emojiSz.height)/2), withAttributes: emojiAttr)
                 (price as NSString).draw(at: CGPoint(x: padH + emojiSz.width + gap, y: (h - priceSz.height)/2), withAttributes: priceAttr)
             }
