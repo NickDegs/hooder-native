@@ -39,7 +39,7 @@ struct RootView: View {
                 .presentationDetents([.medium, .large])
                 .presentationBackground(.ultraThinMaterial)
         }
-        .onAppear { feed.start() }
+        .onAppear { feed.start(); EconomyService.shared.start() }   // canlı ekonomi başlasın
         .task {
             // Açılışta VIP entitlement kontrolü (abonelik aktifse anında uygulanır)
             Store.shared.onVIP = { active in game.isVIP = active }
@@ -83,6 +83,7 @@ private struct ScreenPanel: View {
                 switch tab {
                 case .market:    MarketScreen(game: game, feed: feed, onSelect: onSelect)
                 case .portfolio: PortfolioScreen(game: game, feed: feed, onSelect: onSelect)
+                case .forex:     ForexScreen(game: game)
                 case .store:     StoreScreen(game: game)
                 case .rankings:  RankingsScreen(game: game)
                 case .settings:  SettingsScreen(game: game)
