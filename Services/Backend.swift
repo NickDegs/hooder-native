@@ -65,7 +65,8 @@ final class BackendService {
     private func get(_ path: String) async -> Data? {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
         req.timeoutInterval = 10
-        if let token { req.setValue(token, forHTTPHeaderField: "X-Auth-Token") }
+        req.setValue(AppSecret.hooderKey, forHTTPHeaderField: "X-Hooder-Key")
+        if let token = token ?? AuthService.shared.token { req.setValue(token, forHTTPHeaderField: "X-Auth-Token") }
         do {
             let (data, resp) = try await URLSession.shared.data(for: req)
             guard (resp as? HTTPURLResponse)?.statusCode ?? 500 < 400 else { return nil }
@@ -77,7 +78,8 @@ final class BackendService {
         var req = URLRequest(url: baseURL.appendingPathComponent(path))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let token { req.setValue(token, forHTTPHeaderField: "X-Auth-Token") }
+        req.setValue(AppSecret.hooderKey, forHTTPHeaderField: "X-Hooder-Key")
+        if let token = token ?? AuthService.shared.token { req.setValue(token, forHTTPHeaderField: "X-Auth-Token") }
         req.httpBody = try? JSONSerialization.data(withJSONObject: json)
         req.timeoutInterval = 10
         do {

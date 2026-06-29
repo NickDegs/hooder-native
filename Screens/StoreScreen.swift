@@ -56,6 +56,8 @@ struct StoreScreen: View {
                 withAnimation(Motion.glass) { toast = "+\(formatMoney(amount)) eklendi ✅" }
                 Task { try? await Task.sleep(for: .seconds(2.2)); withAnimation { toast = nil } }
             }
+            store.onGrant = { jws in game.grantIAP(jws: jws) }   // SUNUCU otoriter IAP doğrulama
+
             store.onVIP = { active in
                 game.isVIP = active
                 if active { withAnimation(Motion.glass) { toast = "👑 VIP aktif!" }

@@ -17,8 +17,67 @@ final class GameState {
     var vipDiscount: Double { isVIP ? 0.90 : 1.0 }        // VIP: %10 indirim
 
     private let store = UserDefaults.standard
+    private let api = URL(string: "https://realvirtuality.app/hooder-api")!
 
     init() { load() }
+
+    // ── SUNUCU-OTORİTER CÜZDAN ──────────────────────────────────────────────────
+    // Nakit/mülk/fx'in TEK gerçeği sunucudadır. Yerel durum yalnız anlık UX + offline
+    // yedek; her senkronda sunucu gerçeği yereli EZER → hile (sonsuz para vb.) tutmaz.
+    private func walletReq(_ path: String, _ method: String, _ body: [String: Any]? = nil) -> URLRequest? {
+        guard let token = AuthService.shared.token else { return nil }
+        var req = URLRequest(url: api.appendingPathComponent(path))
+        req.httpMethod = method
+        req.setValue(AppSecret.hooderKey, forHTTPHeaderField: "X-Hooder-Key")
+        req.setValue(token, forHTTPHeaderField: "X-Auth-Token")
+        req.timeoutInterval = 10
+        if let body {
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        }
+        return req
+    }
+
+    /// Sunucudaki gerçek cüzdanı çek (nakit/mülk/fx) ve yereli ona hizala (otoriter).
+    func syncWallet() async {
+        await AuthService.shared.ensure()
+        guard let req = walletReq("wallet", "GET"),
+              let (data, resp) = try? await URLSession.shared.data(for: req),
+              (resp as? HTTPURLResponse)?.statusCode ?? 500 < 400,
+              let w = try? JSONDecoder().decode(WalletResp.self, from: data) else { return }
+        cash = w.cash
+        ownedIds = Set(w.owned.map { $0.id })
+        if let f = w.fx { fx = f }
+        pendingIncome = 0
+        save()
+    }
+
+    /// Aksiyonu sunucuya yolla; sunucu reddederse (yetersiz/zaten sahip) gerçeğe dön,
+    /// kabul ederse nakdi sunucu değerine hizala.
+    private func postWallet(_ path: String, _ body: [String: Any]) {
+        guard let req = walletReq(path, "POST", body) else { return }
+        Task {
+            guard let (data, resp) = try? await URLSession.shared.data(for: req) else { return }
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? 500
+            if code >= 400 { await syncWallet(); return }           // sunucu reddetti → gerçeğe dön
+            if let r = try? JSONDecoder().decode(CashResp.self, from: data) {
+                cash = r.cash; save()                                // sunucu nakdine hizala
+            }
+        }
+    }
+
+    /// IAP (gerçek para) işlemini SUNUCUDA doğrulat+kredile (StoreKit imzası ile).
+    /// Sunucu Apple imzasını doğrular, tutarı kendi haritasından verir → sahte/çift kredi olmaz.
+    func grantIAP(jws: String) {
+        guard !jws.isEmpty, let req = walletReq("wallet/grant", "POST", ["jws": jws]) else { return }
+        Task {
+            if let (data, resp) = try? await URLSession.shared.data(for: req),
+               (resp as? HTTPURLResponse)?.statusCode ?? 500 < 400,
+               let r = try? JSONDecoder().decode(CashResp.self, from: data) {
+                cash = r.cash; save()
+            }
+        }
+    }
 
     var level: Int { max(1, Int(log2(max(1, netWorth / 5_000_000))) + 1) }
 
@@ -57,6 +116,7 @@ final class GameState {
         cash -= amount
         ownedIds.insert(p.id)
         EconomyService.shared.recordTrade(buy: true, magnitude: amount)
+        postWallet("wallet/buy", ["id": p.id, "price": amount])   // SUNUCU otoriter
         save()
         return 1
     }
@@ -68,6 +128,7 @@ final class GameState {
         cash -= cost
         ownedIds.insert(p.id)
         EconomyService.shared.recordTrade(buy: true, magnitude: cost)   // alım → piyasayı ısıt
+        postWallet("wallet/buy", ["id": p.id, "price": cost])           // SUNUCU otoriter
         save()
         return true
     }
@@ -81,6 +142,7 @@ final class GameState {
         fx[code] = FXPosition(units: prev.units + usdAmount * rate, costUSD: prev.costUSD + usdAmount)
         cash -= usdAmount
         EconomyService.shared.recordFxTrade(code: code, usd: usdAmount, buy: true)   // ortak kuru it
+        postWallet("wallet/fx", ["code": code, "usd": usdAmount, "buy": true, "rate": rate])  // SUNUCU otoriter
         save()
         return true
     }
@@ -93,6 +155,7 @@ final class GameState {
         fx[code] = nil
         cash += usd
         EconomyService.shared.recordFxTrade(code: code, usd: usd, buy: false)         // ortak kuru it
+        postWallet("wallet/fx", ["code": code, "buy": false, "rate": rate])           // SUNUCU otoriter
         save()
         return pl
     }
@@ -141,3 +204,12 @@ struct FXPosition: Codable, Equatable {
     var units: Double      // sahip olunan döviz birimi
     var costUSD: Double    // maliyet (USD)
 }
+
+// ── Sunucu cüzdan yanıtları ─────────────────────────────────────────────────────
+struct WalletResp: Decodable {
+    let cash: Double
+    let owned: [OwnedItem]
+    let fx: [String: FXPosition]?
+}
+struct OwnedItem: Decodable { let id: String; let price: Double; let income: Double }
+struct CashResp: Decodable { let cash: Double }

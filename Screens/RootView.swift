@@ -6,6 +6,7 @@ struct RootView: View {
     @State private var feed = PropertyFeed.shared
     @State private var tab: AppTab = Snapshot.initialTab ?? .map
     @State private var selected: Property?
+    @State private var syncCounter = 0
 
     // saniyede bir gelir tahakkuku
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -41,11 +42,20 @@ struct RootView: View {
         }
         .onAppear { Snapshot.applyLang(); feed.start(); EconomyService.shared.start() }   // canlı ekonomi başlasın
         .task {
+            // Anonim cihaz kimliği + SUNUCU-OTORİTER cüzdanı çek (nakit/mülk/fx gerçeği sunucuda)
+            await AuthService.shared.ensure()
+            await game.syncWallet()
+            // IAP işlemleri arka planda gelse bile sunucuda doğrulansın (global bağlama)
+            Store.shared.onGrant = { jws in game.grantIAP(jws: jws) }
             // Açılışta VIP entitlement kontrolü (abonelik aktifse anında uygulanır)
             Store.shared.onVIP = { active in game.isVIP = active }
             await Store.shared.refreshVIP()
         }
-        .onReceive(tick) { _ in game.tickIncome(1) }
+        .onReceive(tick) { _ in
+            game.tickIncome(1)
+            syncCounter += 1
+            if syncCounter % 25 == 0 { Task { await game.syncWallet() } }   // ~25 sn'de bir sunucu gerçeğine hizala
+        }
         .preferredColorScheme(.dark)
     }
 }

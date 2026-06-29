@@ -32,6 +32,7 @@ final class Store {
     var isVIP: Bool = false
     var onCredit: ((Double) -> Void)?
     var onVIP: ((Bool) -> Void)?
+    var onGrant: ((String) -> Void)?      // imzalı işlem (jws) → sunucuda doğrulanıp kredilenir
 
     private var updatesTask: Task<Void, Never>?
     private var credited: Set<String> = []   // çift kredi engeli (transaction id)
@@ -105,7 +106,8 @@ final class Store {
         credited.insert(key)
         if let amount = Self.cashFor[t.productID] {
             lastCredited = amount
-            onCredit?(amount)
+            onCredit?(amount)                       // yerel anlık geri bildirim (UX)
+            onGrant?(t.jwsRepresentation)            // SUNUCU otoriter: Apple imzasını doğrula + kredile
         }
     }
 }
