@@ -69,7 +69,7 @@ final class Store {
             switch try await product.purchase() {
             case .success(let verification):
                 if case .verified(let transaction) = verification {
-                    credit(transaction)
+                    credit(transaction, jws: verification.jwsRepresentation)
                     await transaction.finish()
                     await refreshVIP()        // VIP aboneliği ise entitlement güncellensin
                 }
@@ -82,7 +82,7 @@ final class Store {
     /// Açılışta / Store görününce: bitmemiş (current entitlement) consumable'ları teslim et.
     func deliverPending() async {
         for await result in Transaction.unfinished {
-            if case .verified(let t) = result { credit(t); await t.finish() }
+            if case .verified(let t) = result { credit(t, jws: result.jwsRepresentation); await t.finish() }
         }
     }
 
@@ -90,7 +90,7 @@ final class Store {
         Task.detached { [weak self] in
             for await update in Transaction.updates {
                 if case .verified(let t) = update {
-                    await self?.creditOnMain(t)
+                    await self?.creditOnMain(t, jws: update.jwsRepresentation)
                     await t.finish()
                     await self?.refreshVIP()
                 }
@@ -98,16 +98,16 @@ final class Store {
         }
     }
 
-    private func creditOnMain(_ t: Transaction) async { credit(t) }
+    private func creditOnMain(_ t: Transaction, jws: String) async { credit(t, jws: jws) }
 
-    private func credit(_ t: Transaction) {
+    private func credit(_ t: Transaction, jws: String) {
         let key = "\(t.id)"
         guard !credited.contains(key) else { return }
         credited.insert(key)
         if let amount = Self.cashFor[t.productID] {
             lastCredited = amount
             onCredit?(amount)                       // yerel anlık geri bildirim (UX)
-            onGrant?(t.jwsRepresentation)            // SUNUCU otoriter: Apple imzasını doğrula + kredile
+            onGrant?(jws)                            // SUNUCU otoriter: Apple imzasını doğrula + kredile
         }
     }
 }
