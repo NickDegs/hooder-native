@@ -1,0 +1,83 @@
+name: App Store Screenshots (simulator)
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  shots:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode seç
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1); [ -z "$XC" ] && XC=/Applications/Xcode.app
+          sudo xcode-select -s "$XC"; xcodebuild -version
+      - name: XcodeGen + token
+        env:
+          MAPBOX_PUBLIC_TOKEN:   ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+          MAPBOX_DOWNLOAD_TOKEN: ${{ secrets.MAPBOX_DOWNLOAD_TOKEN }}
+        run: |
+          brew install xcodegen
+          printf 'machine api.mapbox.com\n  login mapbox\n  password %s\n' "$MAPBOX_DOWNLOAD_TOKEN" > ~/.netrc; chmod 600 ~/.netrc
+          sed -i '' "s|pk.PUBLIC_TOKEN_BURAYA|$MAPBOX_PUBLIC_TOKEN|" project.yml
+          xcodegen generate
+
+      - name: Simulator için derle
+        run: |
+          set -o pipefail
+          xcodebuild -project Hooder.xcodeproj -scheme Hooder -configuration Release \
+            -sdk iphonesimulator -derivedDataPath dd -clonedSourcePackagesDirPath /tmp/spm \
+            CODE_SIGNING_ALLOWED=NO build | xcbeautify || xcodebuild -project Hooder.xcodeproj -scheme Hooder -configuration Release -sdk iphonesimulator -derivedDataPath dd -clonedSourcePackagesDirPath /tmp/spm CODE_SIGNING_ALLOWED=NO build
+          echo "APP=$(ls -d dd/Build/Products/Release-iphonesimulator/*.app | head -1)" >> "$GITHUB_ENV"
+
+      - name: Ekran görüntülerini çek (14 dil x sekmeler x 2 cihaz)
+        run: |
+          BUNDLE=app.realvirtuality.landlord
+          RUNTIME=$(xcrun simctl list runtimes ios -j | python3 -c "import sys,json;r=[x for x in json.load(sys.stdin)['runtimes'] if x['isAvailable']];print(r[-1]['identifier'])")
+          PHONE_DT=$(xcrun simctl list devicetypes -j | python3 -c "import sys,json;d=[x for x in json.load(sys.stdin)['devicetypes'] if 'iPhone' in x['name'] and 'Pro Max' in x['name']];print(d[-1]['identifier'])")
+          IPAD_DT=$(xcrun simctl list devicetypes -j | python3 -c "import sys,json;d=[x for x in json.load(sys.stdin)['devicetypes'] if 'iPad Pro' in x['name'] and ('13' in x['name'] or '12.9' in x['name'])];print(d[-1]['identifier'])")
+          echo "runtime=$RUNTIME phone=$PHONE_DT ipad=$IPAD_DT"
+          # ASC locale -> iOS AppleLanguages kodu
+          declare -A LANG=( [en-US]=en [tr]=tr [es-ES]=es [fr-FR]=fr [de-DE]=de [it]=it [pt-PT]=pt-PT [ru]=ru [ar-SA]=ar [zh-Hans]=zh-Hans [ja]=ja [ko]=ko [uk]=uk [hi]=hi )
+          TABS="map market forex store"
+          mkdir -p shots
+          shoot() {
+            DEV_NAME=$1; DT=$2; TAG=$3
+            UDID=$(xcrun simctl create "$DEV_NAME" "$DT" "$RUNTIME")
+            xcrun simctl boot "$UDID"; sleep 8
+            xcrun simctl install "$UDID" "$APP"
+            for loc in "${!LANG[@]}"; do
+              code=${LANG[$loc]}
+              mkdir -p "shots/$loc"
+              for tab in $TABS; do
+                xcrun simctl terminate "$UDID" $BUNDLE 2>/dev/null || true
+                xcrun simctl launch "$UDID" $BUNDLE -AppleLanguages "($code)" -AppleLocale "$code" -snapLang "$code" -snapTab "$tab" >/dev/null 2>&1 || true
+                if [ "$tab" = "map" ]; then sleep 13; else sleep 4; fi
+                xcrun simctl io "$UDID" screenshot "shots/$loc/${TAG}_${tab}.png" >/dev/null 2>&1 || true
+              done
+              echo "  $loc ($TAG) çekildi"
+            done
+            xcrun simctl shutdown "$UDID" || true
+          }
+          shoot "snap67" "$PHONE_DT" "iphone"
+          shoot "snap129" "$IPAD_DT" "ipad"
+          echo "çekilen png:"; find shots -name '*.png' | wc -l
+
+      - name: App Store'a yükle
+        env:
+          ASC_KEY_ID:      ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID:   ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          printf '%s' "$ASC_PRIVATE_KEY" > /tmp/asc.p8
+          pip3 install pyjwt requests pillow 2>/dev/null || pip3 install --break-system-packages pyjwt requests pillow
+          python3 .github/upload_shots.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots/**/*.png

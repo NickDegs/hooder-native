@@ -4,7 +4,7 @@ import SwiftUI
 struct RootView: View {
     @State private var game = GameState()
     @State private var feed = PropertyFeed.shared
-    @State private var tab: AppTab = .map
+    @State private var tab: AppTab = Snapshot.initialTab ?? .map
     @State private var selected: Property?
 
     // saniyede bir gelir tahakkuku
@@ -39,7 +39,7 @@ struct RootView: View {
                 .presentationDetents([.medium, .large])
                 .presentationBackground(.ultraThinMaterial)
         }
-        .onAppear { feed.start(); EconomyService.shared.start() }   // canlı ekonomi başlasın
+        .onAppear { Snapshot.applyLang(); feed.start(); EconomyService.shared.start() }   // canlı ekonomi başlasın
         .task {
             // Açılışta VIP entitlement kontrolü (abonelik aktifse anında uygulanır)
             Store.shared.onVIP = { active in game.isVIP = active }
