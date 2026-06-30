@@ -62,6 +62,10 @@ targets:
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         # Mapbox public token (CI'da pk.PUBLIC_TOKEN_BURAYA → gerçek token ile değiştirilir)
         MBXAccessToken: pk.PUBLIC_TOKEN_BURAYA
+    entitlements:
+      path: Hooder.entitlements
+      properties:
+        com.apple.developer.devicecheck.appattest-environment: production
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.realvirtuality.landlord
