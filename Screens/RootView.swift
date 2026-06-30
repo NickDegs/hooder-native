@@ -4,14 +4,38 @@ import SwiftUI
 struct RootView: View {
     @State private var game = GameState()
     @State private var feed = PropertyFeed.shared
+    @State private var auth = AuthService.shared
     @State private var tab: AppTab = Snapshot.initialTab ?? .map
     @State private var selected: Property?
     @State private var syncCounter = 0
+    @State private var connecting = true
 
     // saniyede bir gelir tahakkuku
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
+        Group {
+            if auth.ready { gameView }                       // kimlik alındı → oyun
+            else { LockView(connecting: connecting) { await startup() } }   // yoksa KİLİT
+        }
+        .task { if !Snapshot.active { await startup() } else { auth.markReadyForSnapshot() } }
+        .preferredColorScheme(.dark)
+    }
+
+    // İlk açılış akışı: ZORUNLU sunucu kimliği → sonra cüzdan/store
+    private func startup() async {
+        connecting = true
+        await auth.authenticate()
+        connecting = false
+        guard auth.ready else { return }                     // token yoksa oyun açılmaz
+        await game.syncWallet()
+        Store.shared.onGrant = { jws in game.grantIAP(jws: jws) }
+        Store.shared.onVIP = { active in game.isVIP = active }
+        Store.shared.onVIPProof = { jws in game.proveVIP(jws: jws) }
+        await Store.shared.refreshVIP()
+    }
+
+    private var gameView: some View {
         ZStack(alignment: .bottom) {
             Theme.bg.ignoresSafeArea()
 
@@ -41,23 +65,41 @@ struct RootView: View {
                 .presentationBackground(.ultraThinMaterial)
         }
         .onAppear { Snapshot.applyLang(); feed.start(); EconomyService.shared.start() }   // canlı ekonomi başlasın
-        .task {
-            // Anonim cihaz kimliği + SUNUCU-OTORİTER cüzdanı çek (nakit/mülk/fx gerçeği sunucuda)
-            await AuthService.shared.ensure()
-            await game.syncWallet()
-            // IAP işlemleri arka planda gelse bile sunucuda doğrulansın (global bağlama)
-            Store.shared.onGrant = { jws in game.grantIAP(jws: jws) }
-            // Açılışta VIP entitlement kontrolü (abonelik aktifse anında uygulanır)
-            Store.shared.onVIP = { active in game.isVIP = active }
-            Store.shared.onVIPProof = { jws in game.proveVIP(jws: jws) }   // SUNUCU doğrular
-            await Store.shared.refreshVIP()
-        }
         .onReceive(tick) { _ in
             game.tickIncome(1)
             syncCounter += 1
             if syncCounter % 25 == 0 { Task { await game.syncWallet() } }   // ~25 sn'de bir sunucu gerçeğine hizala
         }
-        .preferredColorScheme(.dark)
+    }
+}
+
+// ── KİLİT EKRANI: sunucu kimliği/internet yoksa oyun açılmaz (korsan/offline engeli) ──
+struct LockView: View {
+    let connecting: Bool
+    let retry: () async -> Void
+    var body: some View {
+        ZStack {
+            Theme.bg.ignoresSafeArea()
+            VStack(spacing: 18) {
+                Image(systemName: "lock.shield.fill")
+                    .font(.system(size: 60)).foregroundStyle(Theme.primary)
+                Text("Hooder").font(.h1).foregroundStyle(Theme.text)
+                Text(connecting ? L10n.shared.t("auth_checking") : L10n.shared.t("auth_required"))
+                    .font(.h3).foregroundStyle(Theme.textSub)
+                Text(L10n.shared.t("auth_online_note"))
+                    .font(.bodyB).foregroundStyle(Theme.textMuted)
+                    .multilineTextAlignment(.center).padding(.horizontal, 44)
+                if connecting {
+                    ProgressView().tint(Theme.primary).padding(.top, 4)
+                } else {
+                    Button { Task { await retry() } } label: {
+                        Text(L10n.shared.t("retry")).font(.bodyB).foregroundStyle(.white)
+                            .padding(.horizontal, 30).frame(height: 52)
+                            .background(Theme.primary, in: Capsule())
+                    }.buttonStyle(.plain).padding(.top, 6)
+                }
+            }
+        }
     }
 }
 

@@ -13,7 +13,17 @@ final class AuthService {
     static let shared = AuthService()
 
     private(set) var token: String?
+    private(set) var ready = false      // sunucu kimliği alındı mı → OYUN KİLİDİ
     private let base = URL(string: "https://realvirtuality.app/hooder-api")!
+
+    /// OYUN KİLİDİ: internet + sunucu kimliği ZORUNLU. Token alınınca açılır.
+    /// Korsan/sideload veya offline durumda token alınamaz → oyun açılmaz.
+    func authenticate() async {
+        ready = (await ensure()) != nil
+    }
+
+    /// CI ekran görüntüsü modunda kapıyı atla (gerçek kullanıcıyı etkilemez).
+    func markReadyForSnapshot() { ready = true }
 
     /// Kararlı cihaz kimliği (ilk açılışta üretilir, kalıcı saklanır).
     private func deviceID() -> String {
