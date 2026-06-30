@@ -49,22 +49,16 @@ final class AuthService {
         return token
     }
 
-    // App Attest kanıtı: ilk açılışta attestation, sonraki açılışlarda assertion
+    // App Attest kanıtı: her oturumda taze key + attestation (nonce = sunucu challenge'ı).
+    // Entitlement GEREKMEZ — DCAppAttestService production'da (TestFlight/App Store) default çalışır.
     private func attestProof() async -> [String: Any]? {
         guard let challenge = await fetchChallenge() else { return nil }
         let clientHash = Data(SHA256.hash(data: Data(challenge.utf8)))
-        let storedKey = UserDefaults.standard.string(forKey: "hooder_attest_key")
         do {
-            if let keyId = storedKey {
-                let assertion = try await attest.generateAssertion(keyId, clientDataHash: clientHash)
-                return ["challenge": challenge, "key_id": keyId, "assertion": assertion.base64EncodedString()]
-            } else {
-                let keyId = try await attest.generateKey()
-                let attestation = try await attest.attestKey(keyId, clientDataHash: clientHash)
-                UserDefaults.standard.set(keyId, forKey: "hooder_attest_key")
-                return ["challenge": challenge, "key_id": keyId, "attestation": attestation.base64EncodedString()]
-            }
-        } catch { return nil }   // başarısız → kanıtsız dene (sunucu flag'ine göre karar verir)
+            let keyId = try await attest.generateKey()
+            let attestation = try await attest.attestKey(keyId, clientDataHash: clientHash)
+            return ["challenge": challenge, "attest_key_id": keyId, "attest_object": attestation.base64EncodedString()]
+        } catch { return nil }   // başarısız → kanıtsız dene (sunucu fail-open/STRICT'e göre karar verir)
     }
 
     private func fetchChallenge() async -> String? {
