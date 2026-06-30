@@ -32,9 +32,10 @@ actor PropertyService {
     }
     private func persist() {
         let d = UserDefaults.standard
-        let arr = Array(Array(registry.values).suffix(3000))
+        // KALICI cache: 20.000 mülke kadar diskte tut → bir kez indirilen bölge sonsuza dek anında.
+        let arr = Array(Array(registry.values).suffix(20000))
         if let data = try? JSONEncoder().encode(arr) { d.set(data, forKey: regKey) }
-        d.set(fetchedAreas.suffix(500).map { [$0.lat, $0.lng] }, forKey: areaKey)
+        d.set(fetchedAreas.suffix(4000).map { [$0.lat, $0.lng] }, forKey: areaKey)
     }
 
     /// Açılışta haritaya ANINDA basmak için diskteki tüm cache'li mülkler.
@@ -81,7 +82,7 @@ actor PropertyService {
         hydrate()
         guard !token.isEmpty, !alreadyFetched(lat, lng) else { return [] }
         fetchedAreas.append((lat, lng))
-        if fetchedAreas.count > 400 { fetchedAreas.removeFirst(fetchedAreas.count - 400) }
+        if fetchedAreas.count > 4000 { fetchedAreas.removeFirst(fetchedAreas.count - 4000) }
 
         async let ctx = reverseGeocode(lat: lat, lng: lng)
         async let feats = tilequery(lat: lat, lng: lng)
@@ -95,6 +96,22 @@ actor PropertyService {
         }
         if !added.isEmpty { persist() }   // yeni indirilenleri diske kaydet (kalıcı cache)
         return added
+    }
+
+    /// ÖNDEN YÜKLEME: merkez + 4 komşu bölgeyi paralel indir → kullanıcı kaydırınca/
+    /// yaklaşınca veri ZATEN hazır = etiketler anında. İndirilmiş komşular atlanır
+    /// (alreadyFetched), yani sadece yeni sınır indirilir → ağ israfı yok, kalıcı cache.
+    @discardableResult
+    func prefetchArea(lat: Double, lng: Double) async -> [Property] {
+        hydrate()
+        let off = 0.0075   // ~800 m komşu offset (tilequery 1000 m yarıçapıyla örtüşür)
+        let pts = [(lat, lng), (lat + off, lng), (lat - off, lng), (lat, lng + off), (lat, lng - off)]
+        var all: [Property] = []
+        await withTaskGroup(of: [Property].self) { group in
+            for (la, ln) in pts { group.addTask { await self.fetchArea(lat: la, lng: ln) } }
+            for await r in group { all += r }
+        }
+        return all
     }
 
     // ── Tilequery (POI + bina) ────────────────────────────────────────────────

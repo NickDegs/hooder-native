@@ -36,7 +36,7 @@ struct MapScreen: View {
                 onRegionChange: { c in
                     currentCenter = c
                     Task {
-                        let added = await PropertyService.shared.fetchArea(lat: c.latitude, lng: c.longitude)
+                        let added = await PropertyService.shared.prefetchArea(lat: c.latitude, lng: c.longitude)
                         if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
                     }
                 },
@@ -130,12 +130,12 @@ struct MapScreen: View {
                 flyTarget = c
                 currentCenter = c
                 Task {
-                    let added = await PropertyService.shared.fetchArea(lat: c.latitude, lng: c.longitude)
+                    let added = await PropertyService.shared.prefetchArea(lat: c.latitude, lng: c.longitude)
                     if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
                 }
             }
             Task {
-                let added = await PropertyService.shared.fetchArea(lat: start.latitude, lng: start.longitude)
+                let added = await PropertyService.shared.prefetchArea(lat: start.latitude, lng: start.longitude)
                 if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
             }
         }
@@ -156,7 +156,7 @@ struct MapScreen: View {
                 currentCenter = hit.coord
                 searchMsg = "📍 \(hit.place)"
             }
-            let added = await PropertyService.shared.fetchArea(lat: hit.coord.latitude, lng: hit.coord.longitude)
+            let added = await PropertyService.shared.prefetchArea(lat: hit.coord.latitude, lng: hit.coord.longitude)
             if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
         }
     }
