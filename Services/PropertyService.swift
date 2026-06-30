@@ -229,10 +229,10 @@ actor PropertyService {
 
         if isBuilding {
             let height = f.properties?.height ?? 0
-            let kind = height > 60 ? "Rezidans" : height > 25 ? "Plaza" : "Apartman"
+            let kind = height > 60 ? "Rezidans" : height > 25 ? "Plaza" : height > 10 ? "Apartman" : "Ev"
             let cat: PropertyCategory = height > 25 ? .office : .building
-            let base = height > 60 ? 28_000_000.0 : height > 25 ? 22_000_000 : 7_000_000
-            let price = max(2_000_000, (base * (0.6 + seed * 1.6) / 100_000).rounded() * 100_000)
+            let base = height > 60 ? 28_000_000.0 : height > 25 ? 22_000_000 : height > 10 ? 7_000_000 : 3_500_000
+            let price = max(1_200_000, (base * (0.6 + seed * 1.6) / 100_000).rounded() * 100_000)
             return Property(
                 id: "bld_\(String(format: "%.5f", lat))_\(String(format: "%.5f", lng))",
                 name: "\(area.district) \(kind) No.\(Int(seed * 90) + 1)",

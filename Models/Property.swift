@@ -38,15 +38,10 @@ struct Property: Identifiable, Codable, Equatable {
 }
 
 // ── Rakip sahipler ────────────────────────────────────────────────────────────
-// Bazı mülklerin "rakip" sahibi vardır (deterministik). Bunlar doğrudan ALINAMAZ;
-// sahibine TEKLİF yollanır. vipOnly mülkler hariç (onlar VIP'e özel satılık).
+// Rakip kilidi DEVRE DIŞI — her mülk (apartman/ev/her şey) doğrudan satın alınabilir.
 enum Rivals {
     static let names = ["Emir Holding", "Defne Yatırım", "Kaya Group", "Marina Estates", "Atlas Realty", "Boğaz Capital", "Nova İnşaat"]
-    static func owner(of p: Property) -> String? {
-        guard !p.vipOnly else { return nil }
-        let h = abs(p.id.hashValue)
-        return (h % 100 < 35) ? names[h % names.count] : nil   // ~%35 rakip sahibi
-    }
+    static func owner(of p: Property) -> String? { nil }
 }
 
 // vipOnly backend JSON'da olmayabilir → toleranslı decode (memberwise init korunur)
