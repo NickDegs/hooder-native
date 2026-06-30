@@ -10,8 +10,9 @@ actor PropertyService {
 
     private var registry: [String: Property] = [:]
     private var fetchedAreas: [(lat: Double, lng: Double)] = []
+    private var downloadedCities: Set<String> = []      // tek seferde indirilen şehirler
     private var hydrated = false
-    private let regKey = "hooder_props_v1", areaKey = "hooder_areas_v1"
+    private let regKey = "hooder_props_v1", areaKey = "hooder_areas_v1", cityKey = "hooder_cities_v1"
 
     private var token: String {
         Bundle.main.object(forInfoDictionaryKey: "MBXAccessToken") as? String ?? ""
@@ -29,17 +30,38 @@ actor PropertyService {
         if let a = d.array(forKey: areaKey) as? [[Double]] {
             for x in a where x.count == 2 { fetchedAreas.append((x[0], x[1])) }
         }
+        if let c = d.array(forKey: cityKey) as? [String] { downloadedCities = Set(c) }
     }
     private func persist() {
         let d = UserDefaults.standard
-        // KALICI cache: 20.000 mülke kadar diskte tut → bir kez indirilen bölge sonsuza dek anında.
+        // KALICI cache: 20.000 mülke kadar diskte tut → bir kez indirilen şehir sonsuza dek anında.
         let arr = Array(Array(registry.values).suffix(20000))
         if let data = try? JSONEncoder().encode(arr) { d.set(data, forKey: regKey) }
         d.set(fetchedAreas.suffix(4000).map { [$0.lat, $0.lng] }, forKey: areaKey)
+        d.set(Array(downloadedCities), forKey: cityKey)
     }
 
     /// Açılışta haritaya ANINDA basmak için diskteki tüm cache'li mülkler.
     func cachedProperties() -> [Property] { hydrate(); return Array(registry.values) }
+
+    /// İndirilmiş tüm mülk cache'ini sil (Ayarlar'dan kullanıcı temizleyebilir).
+    /// Dönüş: silinen mülk sayısı. Sonrası: bölgeler gezilince yeniden iner.
+    @discardableResult
+    func clearCache() -> Int {
+        hydrate()
+        let n = registry.count
+        registry.removeAll(); fetchedAreas.removeAll(); downloadedCities.removeAll()
+        let d = UserDefaults.standard
+        d.removeObject(forKey: regKey); d.removeObject(forKey: areaKey); d.removeObject(forKey: cityKey)
+        return n
+    }
+
+    /// Cache boyutu hakkında bilgi (Ayarlar'da göstermek için): mülk sayısı + yaklaşık MB.
+    func cacheInfo() -> (count: Int, approxMB: Double) {
+        hydrate()
+        let bytes = (UserDefaults.standard.data(forKey: regKey)?.count) ?? 0
+        return (registry.count, Double(bytes) / 1_048_576.0)
+    }
 
     // Kategori eşlemesi (POI class → oyun kategorisi + temel fiyat + prestij)
     private static let classMap: [String: (cat: PropertyCategory, base: Double, prestige: Int)] = [
@@ -112,6 +134,60 @@ actor PropertyService {
             for await r in group { all += r }
         }
         return all
+    }
+
+    /// Bir şehrin tamamı zaten indirildi mi? (UI tetikleme kararı için)
+    func cityDownloaded(_ city: String, _ country: String) -> Bool {
+        downloadedCities.contains("\(city)|\(country)")
+    }
+
+    /// ŞEHRİ KOMPLE İNDİR: bulunduğun şehrin sınırını (bbox) bul, ızgarayla tara →
+    /// tüm mülkleri tek seferde indir. Şehir içinde nereye gidersen git ANINDA + kalıcı.
+    /// `onChunk` her parti bitince yeni mülkleri + ilerlemeyi (0…1) bildirir → harita dolar.
+    func downloadCity(lat: Double, lng: Double,
+                      onChunk: @escaping ([Property], Double) -> Void) async {
+        hydrate()
+        guard !token.isEmpty, lat.isFinite, lng.isFinite else { onChunk([], 1); return }
+        let area = await reverseGeocode(lat: lat, lng: lng)
+        let key = "\(area.city)|\(area.country)"
+        if downloadedCities.contains(key) { onChunk([], 1); return }   // zaten inmiş → anında
+        downloadedCities.insert(key)
+
+        let span = 0.09, step = 0.014          // merkez ±~10 km, ~1.5 km ızgara adımı
+        let bb = await cityBBox(lat: lat, lng: lng)
+        let loLat = max(bb?.minLat ?? lat - span, lat - span), hiLat = min(bb?.maxLat ?? lat + span, lat + span)
+        let loLng = max(bb?.minLng ?? lng - span, lng - span), hiLng = min(bb?.maxLng ?? lng + span, lng + span)
+        var cells: [(Double, Double)] = []
+        var la = loLat
+        while la <= hiLat { var ln = loLng; while ln <= hiLng { cells.append((la, ln)); ln += step }; la += step }
+        cells = Array(cells.prefix(220))       // güvenlik kapağı (devasa metropolde patlamasın)
+        if cells.isEmpty { onChunk([], 1); return }
+
+        var done = 0
+        var i = 0
+        while i < cells.count {
+            let slice = Array(cells[i ..< min(i + 8, cells.count)])    // 8'erli paralel parti
+            var chunk: [Property] = []
+            await withTaskGroup(of: [Property].self) { group in
+                for (cla, cln) in slice { group.addTask { await self.fetchArea(lat: cla, lng: cln) } }
+                for await r in group { chunk += r }
+            }
+            done += slice.count; i += 8
+            onChunk(chunk, Double(done) / Double(cells.count))
+        }
+        persist()
+    }
+
+    // Şehrin sınır kutusunu (bbox) Mapbox'tan al → ızgara o alanı kapsasın
+    private func cityBBox(lat: Double, lng: Double) async -> (minLng: Double, minLat: Double, maxLng: Double, maxLat: Double)? {
+        let lang = Locale.current.language.languageCode?.identifier ?? "en"
+        guard let url = URL(string: "https://api.mapbox.com/geocoding/v5/mapbox.places/\(lng),\(lat).json?types=place,locality,region&language=\(lang)&access_token=\(token)"),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let geo = try? JSONDecoder().decode(GeoResponse.self, from: data) else { return nil }
+        if let f = geo.features.first(where: { ($0.bbox?.count ?? 0) == 4 }), let b = f.bbox {
+            return (b[0], b[1], b[2], b[3])
+        }
+        return nil
     }
 
     // ── Tilequery (POI + bina) ────────────────────────────────────────────────
@@ -200,6 +276,7 @@ struct TileFeature: Decodable {
 private struct GeoResponse: Decodable { let features: [GeoFeature] }
 private struct GeoFeature: Decodable {
     let text: String; let place_type: [String]; let properties: GP?
+    let bbox: [Double]?
     struct GP: Decodable { let short_code: String? }
 }
 // Forward geocode (yer arama) yanıtı

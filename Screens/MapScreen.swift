@@ -17,6 +17,24 @@ struct MapScreen: View {
     @State private var searching = false
     @State private var searchMsg: String?
     @State private var showAreaList = false
+    @State private var cityProgress: Double = 1      // <1 iken "şehir iniyor" rozeti
+    @State private var lastCityLoad: CLLocationCoordinate2D?
+
+    // Bir koordinattaki ŞEHRİ komple indir (ilerleme + harita dolarak)
+    private func loadCity(_ c: CLLocationCoordinate2D) {
+        // Aynı bölgede dönerken boşa tetikleme: son indirmeden ~2.5 km içindeyse atla
+        if let l = lastCityLoad, abs(l.latitude - c.latitude) < 0.022, abs(l.longitude - c.longitude) < 0.022 { return }
+        lastCityLoad = c
+        let f = feed
+        Task {
+            await PropertyService.shared.downloadCity(lat: c.latitude, lng: c.longitude) { chunk, p in
+                Task { @MainActor in
+                    if !chunk.isEmpty { f.ingest(chunk) }
+                    cityProgress = p
+                }
+            }
+        }
+    }
 
     // Bulunduğun bölgenin mülkleri (merkeze yakın), değere göre — Liste butonu için
     private var nearby: [Property] {
@@ -35,10 +53,7 @@ struct MapScreen: View {
                 onSelect: onSelect,
                 onRegionChange: { c in
                     currentCenter = c
-                    Task {
-                        let added = await PropertyService.shared.prefetchArea(lat: c.latitude, lng: c.longitude)
-                        if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
-                    }
+                    loadCity(c)   // bulunduğun şehri komple indir (zaten inmişse anında)
                 },
                 flyTarget: flyTarget
             )
@@ -71,6 +86,12 @@ struct MapScreen: View {
                 }
                 if case .downloading(let p) = downloader.status {
                     Label("Harita indiriliyor… \(Int(p*100))%", systemImage: "arrow.down.circle")
+                        .font(.captionB).foregroundStyle(Theme.text)
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .liquidGlass(cornerRadius: 99, interactive: false)
+                }
+                if cityProgress < 1 {
+                    Label("Şehir mülkleri iniyor… \(Int(cityProgress*100))%", systemImage: "building.2.fill")
                         .font(.captionB).foregroundStyle(Theme.text)
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .liquidGlass(cornerRadius: 99, interactive: false)
@@ -129,15 +150,9 @@ struct MapScreen: View {
                 locating = false
                 flyTarget = c
                 currentCenter = c
-                Task {
-                    let added = await PropertyService.shared.prefetchArea(lat: c.latitude, lng: c.longitude)
-                    if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
-                }
+                loadCity(c)   // konumundaki şehri komple indir
             }
-            Task {
-                let added = await PropertyService.shared.prefetchArea(lat: start.latitude, lng: start.longitude)
-                if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
-            }
+            loadCity(start)   // açılışta bulunduğun şehri komple indir
         }
         .animation(Motion.smooth, value: downloaderProgress)
     }
@@ -156,8 +171,7 @@ struct MapScreen: View {
                 currentCenter = hit.coord
                 searchMsg = "📍 \(hit.place)"
             }
-            let added = await PropertyService.shared.prefetchArea(lat: hit.coord.latitude, lng: hit.coord.longitude)
-            if !added.isEmpty { await MainActor.run { feed.ingest(added) } }
+            await MainActor.run { loadCity(hit.coord) }   // aranan şehri komple indir
         }
     }
 

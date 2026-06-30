@@ -4,7 +4,18 @@ import SwiftUI
 struct SettingsScreen: View {
     var game: GameState
     @State private var confirmReset = false
+    @State private var confirmCache = false
+    @State private var cacheCount = 0
+    @State private var cacheMB = 0.0
+    @State private var cacheMsg: String?
     @State private var l10n = L10n.shared
+
+    private func refreshCacheInfo() {
+        Task {
+            let info = await PropertyService.shared.cacheInfo()
+            await MainActor.run { cacheCount = info.count; cacheMB = info.approxMB }
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -49,6 +60,38 @@ struct SettingsScreen: View {
                     }
                 }
 
+                // ── Önbellek (indirilen mülk verisi) — temizle, yer aç ───────────
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Önbellek (İndirilen Mülkler)", systemImage: "internaldrive.fill")
+                            .font(.bodyB).foregroundStyle(Theme.text)
+                        Text("Gezdiğin şehirlerin mülkleri cihazda saklanır → tekrar açtığında anında gelir. Şu an: \(cacheCount) mülk · ~\(String(format: "%.1f", cacheMB)) MB. Temizlersen yer açılır; gezdikçe yeniden iner.")
+                            .font(.captionB).foregroundStyle(Theme.textSub)
+                        if let cacheMsg {
+                            Text(cacheMsg).font(.captionB).foregroundStyle(Theme.green)
+                        }
+                        if confirmCache {
+                            HStack(spacing: 10) {
+                                GlassButton(tint: .gray, action: { withAnimation(Motion.snappy) { confirmCache = false } }) { Text("Vazgeç") }
+                                GlassButton(tint: Color(red: 0.9, green: 0.6, blue: 0.2), action: {
+                                    Task {
+                                        let n = await PropertyService.shared.clearCache()
+                                        await MainActor.run {
+                                            cacheMsg = "✓ \(n) mülk temizlendi"
+                                            withAnimation(Motion.snappy) { confirmCache = false }
+                                            refreshCacheInfo()
+                                        }
+                                    }
+                                }) { Text("Evet, temizle") }
+                            }
+                        } else {
+                            GlassButton(tint: Color(red: 0.9, green: 0.6, blue: 0.2), action: {
+                                cacheMsg = nil; withAnimation(Motion.snappy) { confirmCache = true }
+                            }) { Text("Önbelleği Temizle") }
+                        }
+                    }
+                }
+
                 if confirmReset {
                     HStack(spacing: 10) {
                         GlassButton(tint: .gray, action: { withAnimation(Motion.snappy) { confirmReset = false } }) { Text("Vazgeç") }
@@ -68,5 +111,6 @@ struct SettingsScreen: View {
             }
             .padding(.horizontal, 14).padding(.vertical, 8).padding(.bottom, 20)
         }
+        .onAppear { refreshCacheInfo() }
     }
 }
