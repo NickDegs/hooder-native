@@ -62,10 +62,9 @@ targets:
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         # Mapbox public token (CI'da pk.PUBLIC_TOKEN_BURAYA → gerçek token ile değiştirilir)
         MBXAccessToken: pk.PUBLIC_TOKEN_BURAYA
-    entitlements:
-      path: Hooder.entitlements
-      properties:
-        com.apple.developer.devicecheck.appattest-environment: production
+    # NOT: App Attest entitlement'ı CI provisioning profile'ında desteklenmediği için
+    # şimdilik kapalı. Apple portal'da App Attest'li profil oluşturulunca açılır.
+    # AuthService App Attest client kodu duruyor; entitlement yokken isSupported=false → güvenli atlar.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.realvirtuality.landlord
