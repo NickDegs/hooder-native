@@ -83,7 +83,7 @@ struct LockView: View {
             VStack(spacing: 18) {
                 Image(systemName: "lock.shield.fill")
                     .font(.system(size: 60)).foregroundStyle(Theme.primary)
-                Text("Hooder").font(.h1).foregroundStyle(Theme.text)
+                Text("Hooder").font(.system(size: 34, weight: .bold)).foregroundStyle(Theme.text)
                 Text(connecting ? L10n.shared.t("auth_checking") : L10n.shared.t("auth_required"))
                     .font(.h3).foregroundStyle(Theme.textSub)
                 Text(L10n.shared.t("auth_online_note"))
