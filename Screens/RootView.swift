@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 // ── Kök kabuk: harita arka planda, üstte HUD + içerik + cam sekme çubuğu ──────
 struct RootView: View {
@@ -9,6 +10,7 @@ struct RootView: View {
     @State private var selected: Property?
     @State private var syncCounter = 0
     @State private var connecting = true
+    @State private var demoFly: CLLocationCoordinate2D?   // tanıtım turu kamera hedefi
 
     // saniyede bir gelir tahakkuku
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -18,8 +20,38 @@ struct RootView: View {
             if auth.ready { gameView }                       // kimlik alındı → oyun
             else { LockView(connecting: connecting) { await startup() } }   // yoksa KİLİT
         }
-        .task { if !Snapshot.active { await startup() } else { auth.markReadyForSnapshot() } }
+        .task {
+            if Snapshot.active { auth.markReadyForSnapshot(); return }
+            await startup()
+            if Demo.active, auth.ready { await runDemo() }   // tanıtım turu (yalnız -demo)
+        }
         .preferredColorScheme(.dark)
+    }
+
+    // ── Tanıtım turu: akıcı sekme + kamera geçişleriyle oyunu özetler (~30 sn) ──
+    @MainActor private func runDemo() async {
+        func wait(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
+        await wait(4.0)                                   // İstanbul haritası + pill'ler otursun
+        if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
+        await wait(3.4)
+        selected = nil
+        await wait(0.6)
+        demoFly = Demo.newYork                            // Manhattan'a uç
+        await wait(4.2)
+        withAnimation(Motion.smooth) { tab = .market }    // canlı piyasa
+        await wait(3.0)
+        withAnimation(Motion.smooth) { tab = .store }     // VIP mağaza
+        await wait(3.0)
+        withAnimation(Motion.smooth) { tab = .rankings }  // liderlik
+        await wait(2.8)
+        withAnimation(Motion.smooth) { tab = .map }
+        demoFly = Demo.paris                              // Paris'e uç
+        await wait(3.8)
+        withAnimation(Motion.smooth) { tab = .portfolio } // portföy
+        await wait(2.8)
+        withAnimation(Motion.smooth) { tab = .map }
+        demoFly = Demo.dubai                              // Dubai'ye uç (final)
+        await wait(4.0)
     }
 
     // İlk açılış akışı: ZORUNLU sunucu kimliği → sonra cüzdan/store
@@ -40,7 +72,7 @@ struct RootView: View {
             Theme.bg.ignoresSafeArea()
 
             // Harita HER ZAMAN arka planda
-            MapScreen(game: game, feed: feed, onSelect: { selected = $0 })
+            MapScreen(game: game, feed: feed, onSelect: { selected = $0 }, externalFly: demoFly)
                 .ignoresSafeArea()
 
             // Harita-dışı ekranlar: alttan kayan cam panel (yumuşak geçiş)

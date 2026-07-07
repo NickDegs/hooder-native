@@ -6,6 +6,7 @@ struct MapScreen: View {
     var game: GameState
     var feed: PropertyFeed
     var onSelect: (Property) -> Void
+    var externalFly: CLLocationCoordinate2D? = nil   // tanıtım turu: dışarıdan kamera hedefi
 
     private let start = CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)
     @State private var downloader = OfflineTileDownloader()
@@ -153,6 +154,10 @@ struct MapScreen: View {
                 loadCity(c)   // konumundaki şehri komple indir
             }
             loadCity(start)   // açılışta bulunduğun şehri komple indir
+        }
+        // Tanıtım turu: dışarıdan gelen kamera hedefine uç + o şehrin mülklerini indir
+        .onChange(of: externalFly.map { "\($0.latitude),\($0.longitude)" }) { _, _ in
+            if let t = externalFly { flyTarget = t; currentCenter = t; loadCity(t) }
         }
         .animation(Motion.smooth, value: downloaderProgress)
     }

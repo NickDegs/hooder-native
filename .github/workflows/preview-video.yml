@@ -1,0 +1,87 @@
+name: Preview & Ad Video (simulator)
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  video:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode seç
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1); [ -z "$XC" ] && XC=/Applications/Xcode.app
+          sudo xcode-select -s "$XC"; xcodebuild -version
+
+      - name: XcodeGen + token
+        env:
+          MAPBOX_PUBLIC_TOKEN:   ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+          MAPBOX_DOWNLOAD_TOKEN: ${{ secrets.MAPBOX_DOWNLOAD_TOKEN }}
+        run: |
+          brew install xcodegen ffmpeg
+          printf 'machine api.mapbox.com\n  login mapbox\n  password %s\n' "$MAPBOX_DOWNLOAD_TOKEN" > ~/.netrc; chmod 600 ~/.netrc
+          sed -i '' "s|pk.PUBLIC_TOKEN_BURAYA|$MAPBOX_PUBLIC_TOKEN|" project.yml
+          xcodegen generate
+
+      - name: Simulator için derle
+        run: |
+          set -o pipefail
+          xcodebuild -project Hooder.xcodeproj -scheme Hooder -configuration Release \
+            -sdk iphonesimulator -derivedDataPath dd -clonedSourcePackagesDirPath /tmp/spm \
+            CODE_SIGNING_ALLOWED=NO build | xcbeautify || xcodebuild -project Hooder.xcodeproj -scheme Hooder -configuration Release -sdk iphonesimulator -derivedDataPath dd -clonedSourcePackagesDirPath /tmp/spm CODE_SIGNING_ALLOWED=NO build
+          echo "APP=$(ls -d dd/Build/Products/Release-iphonesimulator/*.app | head -1)" >> "$GITHUB_ENV"
+
+      - name: Tanıtım turunu kaydet (iPhone 16 Pro Max / 6.9")
+        run: |
+          set -e
+          BUNDLE=app.realvirtuality.landlord
+          RUNTIME=$(xcrun simctl list runtimes ios -j | python3 -c "import sys,json;r=[x for x in json.load(sys.stdin)['runtimes'] if x['isAvailable']];print(r[-1]['identifier'])")
+          DT=$(xcrun simctl list devicetypes -j | python3 -c "import sys,json;d=[x for x in json.load(sys.stdin)['devicetypes'] if 'iPhone' in x['name'] and 'Pro Max' in x['name']];print(d[-1]['identifier'])")
+          echo "runtime=$RUNTIME device=$DT"
+          UDID=$(xcrun simctl create "hooder-demo" "$DT" "$RUNTIME")
+          xcrun simctl boot "$UDID"; sleep 8
+          # Temiz Apple demo durum çubuğu (9:41, tam pil/sinyal)
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+          xcrun simctl install "$UDID" "$APP"
+          # Kayıt başlat (arka planda), sonra -demo turu ile uygulamayı aç
+          xcrun simctl io "$UDID" recordVideo --codec h264 --force /tmp/raw.mov &
+          REC=$!
+          sleep 1.5
+          xcrun simctl launch "$UDID" $BUNDLE -demo -AppleLanguages "(tr)" -AppleLocale tr
+          sleep 37
+          kill -INT $REC 2>/dev/null || true
+          wait $REC 2>/dev/null || true
+          sleep 1
+          xcrun simctl shutdown "$UDID" 2>/dev/null || true
+          xcrun simctl delete "$UDID" 2>/dev/null || true
+          echo "=== ham kayıt bilgisi ==="
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of default=nw=1 /tmp/raw.mov || true
+          ls -la /tmp/raw.mov
+
+      - name: Videoları işle (App Store önizleme + Reels reklam)
+        run: |
+          set -e
+          mkdir -p out
+          cp /tmp/raw.mov out/hooder_raw.mov
+          # 1) App Store önizleme — cihazın doğal 6.9" çözünürlüğü (1320x2868), ≤30 sn, H.264
+          ffmpeg -y -ss 3.5 -i /tmp/raw.mov -t 28 -an -r 30 \
+            -c:v libx264 -pix_fmt yuv420p -profile:v high -crf 18 -movflags +faststart \
+            out/hooder_appstore_preview.mp4
+          # 2) Reels / Meta reklam — 1080x1920 (9:16), tam ekran telefon + bulanık yan panel
+          ffmpeg -y -ss 3.5 -i /tmp/raw.mov -t 28 -filter_complex \
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:6,eq=brightness=-0.16[bg];[0:v]scale=-2:1920[fg];[bg][fg]overlay=(W-w)/2:0" \
+            -an -r 30 -c:v libx264 -pix_fmt yuv420p -crf 20 -movflags +faststart \
+            out/hooder_reels_ad.mp4
+          echo "=== çıktı ==="; ls -la out
+          for f in out/*.mp4; do echo "-- $f"; ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of default=nw=1 "$f"; done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hooder-videos
+          path: out/*
+          retention-days: 7
