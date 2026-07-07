@@ -36,7 +36,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build | xcbeautify || xcodebuild -project Hooder.xcodeproj -scheme Hooder -configuration Release -sdk iphonesimulator -derivedDataPath dd -clonedSourcePackagesDirPath /tmp/spm CODE_SIGNING_ALLOWED=NO build
           echo "APP=$(ls -d dd/Build/Products/Release-iphonesimulator/*.app | head -1)" >> "$GITHUB_ENV"
 
-      - name: Tanıtım turunu kaydet (Türkçe, iPhone Pro Max 6.9")
+      - name: Tanıtım turunu kaydet (İngilizce, iPhone Pro Max 6.9")
+        env:
+          HOODER_DEMO_KEY: ${{ secrets.HOODER_DEMO_KEY }}
         run: |
           set -e
           BUNDLE=app.realvirtuality.landlord
@@ -57,7 +59,7 @@ jobs:
           xcrun simctl io "$UDID" recordVideo --codec h264 --force out/hooder_raw.mov &
           REC=$!
           sleep 2
-          xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang en -AppleLanguages "(en)" -AppleLocale en_US
+          xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang en -demoKey "$HOODER_DEMO_KEY" -AppleLanguages "(en)" -AppleLocale en_US
           sleep 125
           kill -INT $REC 2>/dev/null || true
           wait $REC 2>/dev/null || true

@@ -73,6 +73,7 @@ final class AuthService {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue(AppSecret.hooderKey, forHTTPHeaderField: "X-Hooder-Key")
+        if Demo.active, let k = Demo.key { req.setValue(k, forHTTPHeaderField: "X-Hooder-Demo") }   // yalnız çekim
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         req.timeoutInterval = 12
         return req

@@ -15,6 +15,14 @@ enum Demo {
         return args[i + 1]
     }
 
+    // Çekim bypass anahtarı: `-demoKey <KEY>` → /anon'a X-Hooder-Demo başlığı (attest'i atlar).
+    // Yalnız simülatör kaydında kullanılır; repo'da gömülü DEĞİL, CI secret'ından gelir.
+    static var key: String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-demoKey"), i + 1 < args.count else { return nil }
+        return args[i + 1]
+    }
+
     // Tanıtımda uçulacak ikonik dünya merkezleri
     static let istanbul = CLLocationCoordinate2D(latitude: 41.0256, longitude: 28.9744)  // Boğaz
     static let newYork  = CLLocationCoordinate2D(latitude: 40.7549, longitude: -73.9840) // Manhattan
