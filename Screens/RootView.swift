@@ -30,10 +30,13 @@ struct RootView: View {
     }
 
     // ── Tanıtım turu: akıcı sekme + kamera geçişleriyle oyunu özetler ──────────
-    // Kayıt CI'da launch'tan ~12 sn sonra başlar; o süre harita+mülklerin oturmasına ayrılır.
+    // CI simülatöründe harita/mülk indirmesi değişken sürer → sabit bekleme yerine
+    // mülkler gelene kadar bekle (üst sınırlı), sonra tile render için ekstra süre tanı.
     @MainActor private func runDemo() async {
         func wait(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
-        await wait(13.0)                                  // harita + pill'ler tam otursun (kayıt öncesi)
+        var waited = 0.0
+        while waited < 50, feed.all.count < 40 { await wait(1); waited += 1 }   // mülkler insin
+        await wait(8.0)                                   // uydu tile'ları görsel olarak otursun
         if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
         await wait(3.6)
         selected = nil

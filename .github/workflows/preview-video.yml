@@ -52,12 +52,13 @@ jobs:
           xcrun simctl privacy "$UDID" grant location "$BUNDLE" || true
           xcrun simctl privacy "$UDID" grant location-always "$BUNDLE" || true
           mkdir -p out
-          # Uygulamayı Türkçe tanıtım turu ile başlat; harita otursun, SONRA kayda başla
-          xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang tr -AppleLanguages "(tr)" -AppleLocale tr_TR
-          sleep 11
+          # Kaydı HEMEN başlat (recordVideo ~12sn geç ısınıyor) ve UZUN kaydet;
+          # tur, mülkler inince kendiliğinden başlar — kesim sunucuda yapılır.
           xcrun simctl io "$UDID" recordVideo --codec h264 --force out/hooder_raw.mov &
           REC=$!
-          sleep 34
+          sleep 2
+          xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang tr -AppleLanguages "(tr)" -AppleLocale tr_TR
+          sleep 100
           kill -INT $REC 2>/dev/null || true
           wait $REC 2>/dev/null || true
           sleep 1
