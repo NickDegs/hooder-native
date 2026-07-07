@@ -22,9 +22,16 @@ struct RootView: View {
         }
         .task {
             if Snapshot.active { auth.markReadyForSnapshot(); return }
-            if Demo.active, let l = Demo.lang { L10n.shared.lang = l }   // tanıtım dili
+            // TANITIM TURU: backend'e GİTME (CF edge datacenter/CI IP'sini bloklar → /anon 403).
+            // Kimliği atla (markReadyForSnapshot), mülkler Mapbox tilequery'den gelir (backend'siz),
+            // cüzdan/ekonomi yerel varsayılanlarla dolu görünür. Sadece görsel çekim içindir.
+            if Demo.active {
+                if let l = Demo.lang { L10n.shared.lang = l }
+                auth.markReadyForSnapshot()
+                await runDemo()
+                return
+            }
             await startup()
-            if Demo.active, auth.ready { await runDemo() }   // tanıtım turu (yalnız -demo)
         }
         .preferredColorScheme(.dark)
     }
@@ -44,17 +51,15 @@ struct RootView: View {
         await wait(0.8)
         demoFly = Demo.newYork                            // Manhattan'a uç
         await wait(9.0)                                   // tile'lar insin + vitrin
-        withAnimation(Motion.smooth) { tab = .market }    // canlı piyasa
+        withAnimation(Motion.smooth) { tab = .market }    // canlı piyasa (mülk listesi)
         await wait(3.2)
-        withAnimation(Motion.smooth) { tab = .store }     // VIP mağaza
+        withAnimation(Motion.smooth) { tab = .forex }     // döviz al-sat
         await wait(3.0)
-        withAnimation(Motion.smooth) { tab = .rankings }  // liderlik
-        await wait(2.8)
+        withAnimation(Motion.smooth) { tab = .store }     // VIP mağaza (altın kart)
+        await wait(3.2)
         withAnimation(Motion.smooth) { tab = .map }
         demoFly = Demo.paris                              // Paris'e uç
         await wait(9.0)
-        withAnimation(Motion.smooth) { tab = .portfolio } // portföy
-        await wait(2.8)
         withAnimation(Motion.smooth) { tab = .map }
         demoFly = Demo.dubai                              // Dubai'ye uç (final)
         await wait(11.0)
