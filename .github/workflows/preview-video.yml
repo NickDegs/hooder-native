@@ -57,8 +57,8 @@ jobs:
           xcrun simctl io "$UDID" recordVideo --codec h264 --force out/hooder_raw.mov &
           REC=$!
           sleep 2
-          xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang tr -AppleLanguages "(tr)" -AppleLocale tr_TR
-          sleep 100
+          xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang en -AppleLanguages "(en)" -AppleLocale en_US
+          sleep 125
           kill -INT $REC 2>/dev/null || true
           wait $REC 2>/dev/null || true
           sleep 1

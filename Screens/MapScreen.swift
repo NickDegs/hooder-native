@@ -141,7 +141,7 @@ struct MapScreen: View {
             .presentationBackground(.ultraThinMaterial)
         }
         .onAppear {
-            downloader.ensureOffline(center: start)
+            if !Demo.active { downloader.ensureOffline(center: start) }   // demoda rozet çıkmasın, tile'lar ağdan gelsin
             // Diskteki cache'li mülkleri ANINDA bas (etiketler önceden indirilmiş gibi gelir)
             Task {
                 let cached = await PropertyService.shared.cachedProperties()

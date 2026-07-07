@@ -29,20 +29,21 @@ struct RootView: View {
         .preferredColorScheme(.dark)
     }
 
-    // ── Tanıtım turu: akıcı sekme + kamera geçişleriyle oyunu özetler ──────────
-    // CI simülatöründe harita/mülk indirmesi değişken sürer → sabit bekleme yerine
-    // mülkler gelene kadar bekle (üst sınırlı), sonra tile render için ekstra süre tanı.
+    // ── Tanıtım turu: akıcı sekme + kamera geçişleriyle oyunu özetler (~70 sn) ──
+    // CI kaydı ~12 sn geç ısınır + uzak şehir tile'ları ağdan iner → uzun duraklar.
+    // Kesim/temposunu ffmpeg yapar; burada her sahneye bolca süre tanınır.
     @MainActor private func runDemo() async {
         func wait(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
         var waited = 0.0
-        while waited < 50, feed.all.count < 40 { await wait(1); waited += 1 }   // mülkler insin
-        await wait(8.0)                                   // uydu tile'ları görsel olarak otursun
+        while waited < 40, feed.all.count < 40 { await wait(1); waited += 1 }   // mülkler insin
+        await wait(max(0, 18 - waited))                   // kayıt kesin aktif + İstanbul tile'ları
+        await wait(6.0)                                   // İstanbul vitrini
         if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
-        await wait(3.6)
+        await wait(4.0)
         selected = nil
-        await wait(0.6)
+        await wait(0.8)
         demoFly = Demo.newYork                            // Manhattan'a uç
-        await wait(4.6)
+        await wait(9.0)                                   // tile'lar insin + vitrin
         withAnimation(Motion.smooth) { tab = .market }    // canlı piyasa
         await wait(3.2)
         withAnimation(Motion.smooth) { tab = .store }     // VIP mağaza
@@ -51,12 +52,12 @@ struct RootView: View {
         await wait(2.8)
         withAnimation(Motion.smooth) { tab = .map }
         demoFly = Demo.paris                              // Paris'e uç
-        await wait(4.2)
+        await wait(9.0)
         withAnimation(Motion.smooth) { tab = .portfolio } // portföy
         await wait(2.8)
         withAnimation(Motion.smooth) { tab = .map }
         demoFly = Demo.dubai                              // Dubai'ye uç (final)
-        await wait(5.0)
+        await wait(11.0)
     }
 
     // İlk açılış akışı: ZORUNLU sunucu kimliği → sonra cüzdan/store
