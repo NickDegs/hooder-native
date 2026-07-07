@@ -8,6 +8,13 @@ import CoreLocation
 enum Demo {
     static var active: Bool { ProcessInfo.processInfo.arguments.contains("-demo") }
 
+    // Tanıtım dili: `-demoLang tr` → L10n'e uygulanır (Snapshot'a dokunmadan)
+    static var lang: String? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-demoLang"), i + 1 < args.count else { return nil }
+        return args[i + 1]
+    }
+
     // Tanıtımda uçulacak ikonik dünya merkezleri
     static let istanbul = CLLocationCoordinate2D(latitude: 41.0256, longitude: 28.9744)  // Boğaz
     static let newYork  = CLLocationCoordinate2D(latitude: 40.7549, longitude: -73.9840) // Manhattan

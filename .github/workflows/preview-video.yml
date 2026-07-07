@@ -23,7 +23,7 @@ jobs:
           MAPBOX_PUBLIC_TOKEN:   ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
           MAPBOX_DOWNLOAD_TOKEN: ${{ secrets.MAPBOX_DOWNLOAD_TOKEN }}
         run: |
-          brew install xcodegen ffmpeg
+          brew install xcodegen
           printf 'machine api.mapbox.com\n  login mapbox\n  password %s\n' "$MAPBOX_DOWNLOAD_TOKEN" > ~/.netrc; chmod 600 ~/.netrc
           sed -i '' "s|pk.PUBLIC_TOKEN_BURAYA|$MAPBOX_PUBLIC_TOKEN|" project.yml
           xcodegen generate
@@ -36,7 +36,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO build | xcbeautify || xcodebuild -project Hooder.xcodeproj -scheme Hooder -configuration Release -sdk iphonesimulator -derivedDataPath dd -clonedSourcePackagesDirPath /tmp/spm CODE_SIGNING_ALLOWED=NO build
           echo "APP=$(ls -d dd/Build/Products/Release-iphonesimulator/*.app | head -1)" >> "$GITHUB_ENV"
 
-      - name: Tanıtım turunu kaydet (iPhone 16 Pro Max / 6.9")
+      - name: Tanıtım turunu kaydet (Türkçe, iPhone Pro Max 6.9")
         run: |
           set -e
           BUNDLE=app.realvirtuality.landlord
@@ -48,37 +48,22 @@ jobs:
           # Temiz Apple demo durum çubuğu (9:41, tam pil/sinyal)
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
           xcrun simctl install "$UDID" "$APP"
-          # Kayıt başlat (arka planda), sonra -demo turu ile uygulamayı aç
-          xcrun simctl io "$UDID" recordVideo --codec h264 --force /tmp/raw.mov &
+          # KONUM İZNİ ÖNCEDEN VERİLİR → videoda izin penceresi HİÇ ÇIKMAZ
+          xcrun simctl privacy "$UDID" grant location "$BUNDLE" || true
+          xcrun simctl privacy "$UDID" grant location-always "$BUNDLE" || true
+          mkdir -p out
+          # Uygulamayı Türkçe tanıtım turu ile başlat; harita otursun, SONRA kayda başla
+          xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang tr -AppleLanguages "(tr)" -AppleLocale tr_TR
+          sleep 11
+          xcrun simctl io "$UDID" recordVideo --codec h264 --force out/hooder_raw.mov &
           REC=$!
-          sleep 1.5
-          xcrun simctl launch "$UDID" $BUNDLE -demo -AppleLanguages "(tr)" -AppleLocale tr
-          sleep 37
+          sleep 34
           kill -INT $REC 2>/dev/null || true
           wait $REC 2>/dev/null || true
           sleep 1
           xcrun simctl shutdown "$UDID" 2>/dev/null || true
           xcrun simctl delete "$UDID" 2>/dev/null || true
-          echo "=== ham kayıt bilgisi ==="
-          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of default=nw=1 /tmp/raw.mov || true
-          ls -la /tmp/raw.mov
-
-      - name: Videoları işle (App Store önizleme + Reels reklam)
-        run: |
-          set -e
-          mkdir -p out
-          cp /tmp/raw.mov out/hooder_raw.mov
-          # 1) App Store önizleme — cihazın doğal 6.9" çözünürlüğü (1320x2868), ≤30 sn, H.264
-          ffmpeg -y -ss 3.5 -i /tmp/raw.mov -t 28 -an -r 30 \
-            -c:v libx264 -pix_fmt yuv420p -profile:v high -crf 18 -movflags +faststart \
-            out/hooder_appstore_preview.mp4
-          # 2) Reels / Meta reklam — 1080x1920 (9:16), tam ekran telefon + bulanık yan panel
-          ffmpeg -y -ss 3.5 -i /tmp/raw.mov -t 28 -filter_complex \
-            "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=30:6,eq=brightness=-0.16[bg];[0:v]scale=-2:1920[fg];[bg][fg]overlay=(W-w)/2:0" \
-            -an -r 30 -c:v libx264 -pix_fmt yuv420p -crf 20 -movflags +faststart \
-            out/hooder_reels_ad.mp4
-          echo "=== çıktı ==="; ls -la out
-          for f in out/*.mp4; do echo "-- $f"; ffprobe -v error -select_streams v:0 -show_entries stream=width,height,duration -of default=nw=1 "$f"; done
+          echo "=== ham kayıt ==="; ls -la out
 
       - uses: actions/upload-artifact@v4
         with:

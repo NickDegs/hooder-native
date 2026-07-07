@@ -22,36 +22,38 @@ struct RootView: View {
         }
         .task {
             if Snapshot.active { auth.markReadyForSnapshot(); return }
+            if Demo.active, let l = Demo.lang { L10n.shared.lang = l }   // tanıtım dili
             await startup()
             if Demo.active, auth.ready { await runDemo() }   // tanıtım turu (yalnız -demo)
         }
         .preferredColorScheme(.dark)
     }
 
-    // ── Tanıtım turu: akıcı sekme + kamera geçişleriyle oyunu özetler (~30 sn) ──
+    // ── Tanıtım turu: akıcı sekme + kamera geçişleriyle oyunu özetler ──────────
+    // Kayıt CI'da launch'tan ~12 sn sonra başlar; o süre harita+mülklerin oturmasına ayrılır.
     @MainActor private func runDemo() async {
         func wait(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
-        await wait(4.0)                                   // İstanbul haritası + pill'ler otursun
+        await wait(13.0)                                  // harita + pill'ler tam otursun (kayıt öncesi)
         if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
-        await wait(3.4)
+        await wait(3.6)
         selected = nil
         await wait(0.6)
         demoFly = Demo.newYork                            // Manhattan'a uç
-        await wait(4.2)
+        await wait(4.6)
         withAnimation(Motion.smooth) { tab = .market }    // canlı piyasa
-        await wait(3.0)
+        await wait(3.2)
         withAnimation(Motion.smooth) { tab = .store }     // VIP mağaza
         await wait(3.0)
         withAnimation(Motion.smooth) { tab = .rankings }  // liderlik
         await wait(2.8)
         withAnimation(Motion.smooth) { tab = .map }
         demoFly = Demo.paris                              // Paris'e uç
-        await wait(3.8)
+        await wait(4.2)
         withAnimation(Motion.smooth) { tab = .portfolio } // portföy
         await wait(2.8)
         withAnimation(Motion.smooth) { tab = .map }
         demoFly = Demo.dubai                              // Dubai'ye uç (final)
-        await wait(4.0)
+        await wait(5.0)
     }
 
     // İlk açılış akışı: ZORUNLU sunucu kimliği → sonra cüzdan/store
