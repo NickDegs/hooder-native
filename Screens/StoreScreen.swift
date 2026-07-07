@@ -19,7 +19,7 @@ struct StoreScreen: View {
 
                 if store.products.isEmpty {
                     ProgressView().tint(.white).padding(.top, 30)
-                    Text("Paketler yükleniyor…").font(.captionB).foregroundStyle(Theme.textMuted)
+                    Text(L10n.shared.t("loading")).font(.captionB).foregroundStyle(Theme.textMuted)
                 } else {
                     ForEach(store.products, id: \.id) { product in
                         GlassCard(tint: Theme.gold) {

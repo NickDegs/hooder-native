@@ -86,13 +86,13 @@ struct MapScreen: View {
                         .liquidGlass(cornerRadius: 99, interactive: false)
                 }
                 if case .downloading(let p) = downloader.status {
-                    Label("Harita indiriliyor… \(Int(p*100))%", systemImage: "arrow.down.circle")
+                    Label("\(L10n.shared.t("map_downloading"))… \(Int(p*100))%", systemImage: "arrow.down.circle")
                         .font(.captionB).foregroundStyle(Theme.text)
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .liquidGlass(cornerRadius: 99, interactive: false)
                 }
                 if cityProgress < 1 {
-                    Label("Şehir mülkleri iniyor… \(Int(cityProgress*100))%", systemImage: "building.2.fill")
+                    Label("\(L10n.shared.t("city_downloading"))… \(Int(cityProgress*100))%", systemImage: "building.2.fill")
                         .font(.captionB).foregroundStyle(Theme.text)
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .liquidGlass(cornerRadius: 99, interactive: false)
