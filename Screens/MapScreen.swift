@@ -144,7 +144,10 @@ struct MapScreen: View {
             .presentationBackground(.ultraThinMaterial)
         }
         .onAppear {
-            if !Demo.active { downloader.ensureOffline(center: start) }   // demoda online tile (flyTo duraklarında iner)
+            // Offline tile indir (HEM normal HEM demo): CI simülatöründe online streaming render
+            // OLMUYOR (harita siyah) ama TileStore indirmesi çalışıyor (screenshot'lar böyle dolu).
+            // Manhattan turunun 3 durağı da 0.06° (~6.6km) bölgenin içinde → tur boyunca dolu kalır.
+            downloader.ensureOffline(center: start)
             // Diskteki cache'li mülkleri ANINDA bas (etiketler önceden indirilmiş gibi gelir)
             Task {
                 let cached = await PropertyService.shared.cachedProperties()

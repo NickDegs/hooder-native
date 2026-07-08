@@ -52,7 +52,7 @@ struct RootView: View {
         var waited = 0.0
         while waited < 35, feed.all.count < 30 { await wait(1); waited += 1 }   // mülkler insin
         game.demoSeed(feed.all)                           // Portföy + net değer DOLU görünsün
-        await wait(9.0)                                   // başlangıç (Times Square) tile insin + etiketler
+        await wait(14.0)                                  // offline tile inip render olsun (screenshot'lar ~13sn bekliyor)
         demoFly = manhattanStops[0]                       // yavaş uçuş → Grand Central
         await wait(7.0)                                   // uçuş 4sn + durak (tile iner, etiketler belirir)
         if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
