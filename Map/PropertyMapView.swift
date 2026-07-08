@@ -50,7 +50,8 @@ struct PropertyMapView: UIViewRepresentable {
             // İlk layout/boyut otursun diye birkaç kez tekrar dene (marker boş kalmasın)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { c.reapply() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { c.reapply() }
-            if self.cinematic { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.startCinematic() } }
+            // FALLBACK: 10 sn içinde idle olmazsa yine de orbit başlat (harita boş kalmasın diye)
+            if self.cinematic { DispatchQueue.main.asyncAfter(deadline: .now() + 10) { c.startCinematic() } }
         }.store(in: &c.cancelables)
 
         // Kamera durunca: o bölgenin gerçek mülklerini yükle (yeni veri gelince set değişir → reapply).
@@ -60,6 +61,9 @@ struct PropertyMapView: UIViewRepresentable {
             guard let center = map?.mapboxMap.cameraState.center else { return }
             c.parent.onRegionChange?(center)
             c.reapply()
+            // Orbit'i İLK idle'da başlat = uydu tile'ları İNDİKTEN sonra (siyah harita önlenir).
+            // Orbit merkezi sabit tutar (yalnız bearing) → yeni tile gerekmez, aynı görüntü döner.
+            if c.parent.cinematic { DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { c.startCinematic() } }
         }.store(in: &c.cancelables)
 
         return map
