@@ -88,13 +88,13 @@ struct MapScreen: View {
                         .padding(.horizontal, 12).padding(.vertical, 5)
                         .liquidGlass(cornerRadius: 99, interactive: false)
                 }
-                if case .downloading(let p) = downloader.status {
+                if case .downloading(let p) = downloader.status, !Demo.active {   // demoda rozet gizli (temiz çekim)
                     Label("\(L10n.shared.t("map_downloading"))… \(Int(p*100))%", systemImage: "arrow.down.circle")
                         .font(.captionB).foregroundStyle(Theme.text)
                         .padding(.horizontal, 12).padding(.vertical, 7)
                         .liquidGlass(cornerRadius: 99, interactive: false)
                 }
-                if cityProgress < 1 {
+                if cityProgress < 1, !Demo.active {   // demoda rozet gizli (temiz çekim)
                     Label("\(L10n.shared.t("city_downloading"))… \(Int(cityProgress*100))%", systemImage: "building.2.fill")
                         .font(.captionB).foregroundStyle(Theme.text)
                         .padding(.horizontal, 12).padding(.vertical, 7)
@@ -144,7 +144,7 @@ struct MapScreen: View {
             .presentationBackground(.ultraThinMaterial)
         }
         .onAppear {
-            if !Demo.active { downloader.ensureOffline(center: start) }   // demoda rozet çıkmasın, tile'lar ağdan gelsin
+            downloader.ensureOffline(center: start)   // uydu tile'larını indir (demo dahil — yoksa harita siyah kalır)
             // Diskteki cache'li mülkleri ANINDA bas (etiketler önceden indirilmiş gibi gelir)
             Task {
                 let cached = await PropertyService.shared.cachedProperties()
