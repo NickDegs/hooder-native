@@ -43,19 +43,19 @@ struct RootView: View {
         func wait(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
         var waited = 0.0
         while waited < 35, feed.all.count < 30 { await wait(1); waited += 1 }   // Manhattan mülkleri insin
-        await wait(13.0)                                  // ORBİT + etiketler belirsin (ana gösteri)
+        game.demoSeed(feed.all)                           // Portföy + net değer DOLU görünsün
+        await wait(12.0)                                  // ORBİT + etiketler belirsin (ana gösteri)
         if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
-        await wait(4.5)
+        await wait(4.0)
         selected = nil
         await wait(1.0)
-        withAnimation(Motion.smooth) { tab = .market }    // canlı piyasa (mülk listesi)
-        await wait(3.2)
-        withAnimation(Motion.smooth) { tab = .map }
-        await wait(8.0)                                   // orbit devam (etiketli harita)
-        withAnimation(Motion.smooth) { tab = .forex }     // döviz al-sat
-        await wait(3.2)
-        withAnimation(Motion.smooth) { tab = .map }
-        await wait(10.0)                                  // orbit final (temiz harita → outro'ya geçiş)
+        // Tüm uygulamayı özetle (statik ekranlar → simülatörde akıcı)
+        withAnimation(Motion.smooth) { tab = .market };    await wait(3.0)   // canlı piyasa
+        withAnimation(Motion.smooth) { tab = .portfolio }; await wait(3.0)   // sahip olunan mülkler (dolu)
+        withAnimation(Motion.smooth) { tab = .forex };     await wait(3.0)   // döviz al-sat
+        withAnimation(Motion.smooth) { tab = .store };     await wait(3.0)   // VIP mağaza
+        withAnimation(Motion.smooth) { tab = .rankings };  await wait(3.0)   // liderlik tablosu
+        withAnimation(Motion.smooth) { tab = .map };       await wait(9.0)   // orbit final → outro
     }
 
     // İlk açılış akışı: ZORUNLU sunucu kimliği → sonra cüzdan/store

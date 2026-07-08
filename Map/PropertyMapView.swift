@@ -88,7 +88,6 @@ struct PropertyMapView: UIViewRepresentable {
         // ── Sinematik orbit (tanıtım): yavaş sürekli kamera dönüşü + hafif yaklaşma ──
         private var orbitLink: CADisplayLink?
         private var orbitBearing: Double = 0
-        private var orbitZoom: Double = 15.2
         func startCinematic() {
             guard orbitLink == nil, let map else { return }
             orbitBearing = map.mapboxMap.cameraState.bearing
@@ -99,10 +98,11 @@ struct PropertyMapView: UIViewRepresentable {
         }
         @objc private func orbitTick() {
             guard let map else { return }
-            orbitBearing += 0.16                               // ~4.8°/sn yumuşak dönüş
-            if orbitZoom < 15.8 { orbitZoom += 0.0009 }        // çok hafif yaklaşma
+            // ÇOK yavaş dönüş + düşük pitch → simülatörün düşük FPS'inde bile akıcı görünür
+            // (kareler arası fark minimal) ve motion-interpolation temiz çalışır.
+            orbitBearing += 0.05                              // ~1.5°/sn sinematik
             let c = map.mapboxMap.cameraState
-            map.mapboxMap.setCamera(to: CameraOptions(center: c.center, zoom: orbitZoom, bearing: orbitBearing, pitch: 58))
+            map.mapboxMap.setCamera(to: CameraOptions(center: c.center, bearing: orbitBearing, pitch: 40))
         }
 
         init(_ parent: PropertyMapView) { self.parent = parent }

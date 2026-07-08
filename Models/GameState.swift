@@ -100,6 +100,12 @@ final class GameState {
 
     func isOwned(_ id: String) -> Bool { ownedIds.contains(id) }
 
+    /// Tanıtım çekimi: uygulamayı DOLU göster (nakit + sahip olunan mülkler). Yalnız -demo.
+    func demoSeed(_ props: [Property]) {
+        cash = 268_000_000
+        ownedIds = Set(props.sorted { $0.price > $1.price }.prefix(6).map { $0.id })
+    }
+
     /// Canlı fiyat: temel × talep primi × VIP indirim × PİYASA ENDEKSİ (canlı dalgalanır).
     func livePrice(_ p: Property) -> Double {
         let premium = 1 + Double(ownedIds.count) * 0.012

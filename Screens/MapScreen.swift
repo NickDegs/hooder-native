@@ -51,7 +51,7 @@ struct MapScreen: View {
     var body: some View {
         ZStack(alignment: .top) {
             PropertyMapView(
-                center: start, zoom: Demo.active ? 15.2 : 13.5,
+                center: start, zoom: Demo.active ? 14.4 : 13.5,
                 properties: feed.all, ownedIds: game.ownedIds,
                 onSelect: onSelect,
                 onRegionChange: { c in
