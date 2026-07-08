@@ -60,9 +60,15 @@ jobs:
           # tur, mülkler inince kendiliğinden başlar — kesim sunucuda yapılır.
           xcrun simctl io "$UDID" recordVideo --codec h264 --force out/hooder_raw.mov &
           REC=$!
+          # TEŞHİS: uygulama + Mapbox loglarını akıt (tile indirme hatası görünsün)
+          xcrun simctl spawn "$UDID" log stream --level debug \
+            --predicate 'processImagePath CONTAINS "Hooder" OR senderImagePath CONTAINS "Mapbox" OR eventMessage CONTAINS[c] "tile" OR eventMessage CONTAINS[c] "offline" OR eventMessage CONTAINS[c] "mapbox"' \
+            > out/app.log 2>&1 &
+          LOG=$!
           sleep 2
           xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang en -demoKey "$HOODER_DEMO_KEY" -AppleLanguages "(en)" -AppleLocale en_US
           sleep 125
+          kill -INT $LOG 2>/dev/null || true
           kill -INT $REC 2>/dev/null || true
           wait $REC 2>/dev/null || true
           sleep 1
