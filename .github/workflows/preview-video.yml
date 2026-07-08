@@ -67,7 +67,7 @@ jobs:
           LOG=$!
           sleep 2
           xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang en -demoKey "$HOODER_DEMO_KEY" -AppleLanguages "(en)" -AppleLocale en_US
-          sleep 125
+          sleep 185
           kill -INT $LOG 2>/dev/null || true
           kill -INT $REC 2>/dev/null || true
           wait $REC 2>/dev/null || true
