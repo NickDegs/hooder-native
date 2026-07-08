@@ -19,6 +19,7 @@ struct PropertyMapView: UIViewRepresentable {
     var onRegionChange: ((CLLocationCoordinate2D) -> Void)? = nil
     var onDense: ((Bool) -> Void)? = nil
     var flyTarget: CLLocationCoordinate2D? = nil   // "konumuma git" → buraya uç
+    var cinematic: Bool = false                    // tanıtım: yavaş sürekli kamera orbiti
 
     // Symbol layer'a verilen mülk sayısı (Mapbox off-screen cull + collision yapar; yüksek olabilir).
     private let maxMarkers = 1000
@@ -49,6 +50,7 @@ struct PropertyMapView: UIViewRepresentable {
             // İlk layout/boyut otursun diye birkaç kez tekrar dene (marker boş kalmasın)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { c.reapply() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { c.reapply() }
+            if self.cinematic { DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { c.startCinematic() } }
         }.store(in: &c.cancelables)
 
         // Kamera durunca: o bölgenin gerçek mülklerini yükle (yeni veri gelince set değişir → reapply).
@@ -83,7 +85,28 @@ struct PropertyMapView: UIViewRepresentable {
         var lastReapply: Double = 0
         private var index: [String: Property] = [:]
 
+        // ── Sinematik orbit (tanıtım): yavaş sürekli kamera dönüşü + hafif yaklaşma ──
+        private var orbitLink: CADisplayLink?
+        private var orbitBearing: Double = 0
+        private var orbitZoom: Double = 15.2
+        func startCinematic() {
+            guard orbitLink == nil, let map else { return }
+            orbitBearing = map.mapboxMap.cameraState.bearing
+            let link = CADisplayLink(target: self, selector: #selector(orbitTick))
+            link.preferredFramesPerSecond = 30
+            link.add(to: .main, forMode: .common)
+            orbitLink = link
+        }
+        @objc private func orbitTick() {
+            guard let map else { return }
+            orbitBearing += 0.16                               // ~4.8°/sn yumuşak dönüş
+            if orbitZoom < 15.8 { orbitZoom += 0.0009 }        // çok hafif yaklaşma
+            let c = map.mapboxMap.cameraState
+            map.mapboxMap.setCamera(to: CameraOptions(center: c.center, zoom: orbitZoom, bearing: orbitBearing, pitch: 58))
+        }
+
         init(_ parent: PropertyMapView) { self.parent = parent }
+        deinit { orbitLink?.invalidate() }
 
         var lastSig = ""
 

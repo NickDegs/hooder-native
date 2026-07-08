@@ -8,7 +8,9 @@ struct MapScreen: View {
     var onSelect: (Property) -> Void
     var externalFly: CLLocationCoordinate2D? = nil   // tanıtım turu: dışarıdan kamera hedefi
 
-    private let start = CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)
+    // Tanıtım turunda doğrudan Manhattan'da başla (yurtdışı sinematik orbit)
+    private let start = Demo.active ? CLLocationCoordinate2D(latitude: 40.7549, longitude: -73.9840)
+                                    : CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)
     @State private var downloader = OfflineTileDownloader()
     @State private var location = LocationManager()
     @State private var currentCenter = CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)
@@ -49,14 +51,15 @@ struct MapScreen: View {
     var body: some View {
         ZStack(alignment: .top) {
             PropertyMapView(
-                center: start, zoom: 13.5,
+                center: start, zoom: Demo.active ? 15.2 : 13.5,
                 properties: feed.all, ownedIds: game.ownedIds,
                 onSelect: onSelect,
                 onRegionChange: { c in
                     currentCenter = c
                     loadCity(c)   // bulunduğun şehri komple indir (zaten inmişse anında)
                 },
-                flyTarget: flyTarget
+                flyTarget: flyTarget,
+                cinematic: Demo.active
             )
             .ignoresSafeArea()
 

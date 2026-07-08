@@ -36,33 +36,26 @@ struct RootView: View {
         .preferredColorScheme(.dark)
     }
 
-    // ── Tanıtım turu: akıcı sekme + kamera geçişleriyle oyunu özetler (~70 sn) ──
-    // CI kaydı ~12 sn geç ısınır + uzak şehir tile'ları ağdan iner → uzun duraklar.
-    // Kesim/temposunu ffmpeg yapar; burada her sahneye bolca süre tanınır.
+    // ── Tanıtım turu: Manhattan'da SİNEMATİK ORBİT (kamera yavaş döner, etiketler belirir) ──
+    // Harita PropertyMapView'de sürekli döner (cinematic); burada sadece vitrin süresi +
+    // arada mülk detayı ve kısa Market/Forex açılır. Kesim/FPS'i ffmpeg (minterpolate) yapar.
     @MainActor private func runDemo() async {
         func wait(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
         var waited = 0.0
-        while waited < 40, feed.all.count < 40 { await wait(1); waited += 1 }   // mülkler insin
-        await wait(max(0, 18 - waited))                   // kayıt kesin aktif + İstanbul tile'ları
-        await wait(6.0)                                   // İstanbul vitrini
+        while waited < 35, feed.all.count < 30 { await wait(1); waited += 1 }   // Manhattan mülkleri insin
+        await wait(13.0)                                  // ORBİT + etiketler belirsin (ana gösteri)
         if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
-        await wait(4.0)
+        await wait(4.5)
         selected = nil
-        await wait(0.8)
-        demoFly = Demo.newYork                            // Manhattan'a uç
-        await wait(9.0)                                   // tile'lar insin + vitrin
+        await wait(1.0)
         withAnimation(Motion.smooth) { tab = .market }    // canlı piyasa (mülk listesi)
         await wait(3.2)
+        withAnimation(Motion.smooth) { tab = .map }
+        await wait(8.0)                                   // orbit devam (etiketli harita)
         withAnimation(Motion.smooth) { tab = .forex }     // döviz al-sat
-        await wait(3.0)
-        withAnimation(Motion.smooth) { tab = .store }     // VIP mağaza (altın kart)
         await wait(3.2)
         withAnimation(Motion.smooth) { tab = .map }
-        demoFly = Demo.paris                              // Paris'e uç
-        await wait(9.0)
-        withAnimation(Motion.smooth) { tab = .map }
-        demoFly = Demo.dubai                              // Dubai'ye uç (final)
-        await wait(11.0)
+        await wait(10.0)                                  // orbit final (temiz harita → outro'ya geçiş)
     }
 
     // İlk açılış akışı: ZORUNLU sunucu kimliği → sonra cüzdan/store
