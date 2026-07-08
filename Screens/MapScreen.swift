@@ -144,7 +144,7 @@ struct MapScreen: View {
             .presentationBackground(.ultraThinMaterial)
         }
         .onAppear {
-            downloader.ensureOffline(center: start)   // uydu tile'larını indir (demo dahil — yoksa harita siyah kalır)
+            if !Demo.active { downloader.ensureOffline(center: start) }   // demoda online tile (flyTo duraklarında iner)
             // Diskteki cache'li mülkleri ANINDA bas (etiketler önceden indirilmiş gibi gelir)
             Task {
                 let cached = await PropertyService.shared.cachedProperties()

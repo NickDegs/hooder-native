@@ -39,12 +39,22 @@ struct RootView: View {
     // ── Tanıtım turu: Manhattan'da SİNEMATİK ORBİT (kamera yavaş döner, etiketler belirir) ──
     // Harita PropertyMapView'de sürekli döner (cinematic); burada sadece vitrin süresi +
     // arada mülk detayı ve kısa Market/Forex açılır. Kesim/FPS'i ffmpeg (minterpolate) yapar.
+    // Manhattan içinde ikonik duraklar — her yavaş uçuş sonrası kamera DURUR → uydu tile'ı
+    // iner + mülk etiketleri belirir (sürekli orbit tile yüklemeyi engelliyordu; bu çalışır).
+    private let manhattanStops = [
+        CLLocationCoordinate2D(latitude: 40.7527, longitude: -73.9772),  // Grand Central / Midtown
+        CLLocationCoordinate2D(latitude: 40.7069, longitude: -74.0100),  // Financial District
+        CLLocationCoordinate2D(latitude: 40.7648, longitude: -73.9730),  // Central Park South
+    ]
+
     @MainActor private func runDemo() async {
         func wait(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
         var waited = 0.0
-        while waited < 35, feed.all.count < 30 { await wait(1); waited += 1 }   // Manhattan mülkleri insin
+        while waited < 35, feed.all.count < 30 { await wait(1); waited += 1 }   // mülkler insin
         game.demoSeed(feed.all)                           // Portföy + net değer DOLU görünsün
-        await wait(12.0)                                  // ORBİT + etiketler belirsin (ana gösteri)
+        await wait(9.0)                                   // başlangıç (Times Square) tile insin + etiketler
+        demoFly = manhattanStops[0]                       // yavaş uçuş → Grand Central
+        await wait(7.0)                                   // uçuş 4sn + durak (tile iner, etiketler belirir)
         if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
         await wait(4.0)
         selected = nil
@@ -55,7 +65,11 @@ struct RootView: View {
         withAnimation(Motion.smooth) { tab = .forex };     await wait(3.0)   // döviz al-sat
         withAnimation(Motion.smooth) { tab = .store };     await wait(3.0)   // VIP mağaza
         withAnimation(Motion.smooth) { tab = .rankings };  await wait(3.0)   // liderlik tablosu
-        withAnimation(Motion.smooth) { tab = .map };       await wait(9.0)   // orbit final → outro
+        withAnimation(Motion.smooth) { tab = .map };       await wait(2.0)
+        demoFly = manhattanStops[1]                        // yavaş uçuş → Financial District
+        await wait(8.0)
+        demoFly = manhattanStops[2]                        // yavaş uçuş → Central Park (final)
+        await wait(8.0)
     }
 
     // İlk açılış akışı: ZORUNLU sunucu kimliği → sonra cüzdan/store

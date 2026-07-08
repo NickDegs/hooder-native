@@ -50,8 +50,6 @@ struct PropertyMapView: UIViewRepresentable {
             // İlk layout/boyut otursun diye birkaç kez tekrar dene (marker boş kalmasın)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { c.reapply() }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { c.reapply() }
-            // FALLBACK: 10 sn içinde idle olmazsa yine de orbit başlat (harita boş kalmasın diye)
-            if self.cinematic { DispatchQueue.main.asyncAfter(deadline: .now() + 10) { c.startCinematic() } }
         }.store(in: &c.cancelables)
 
         // Kamera durunca: o bölgenin gerçek mülklerini yükle (yeni veri gelince set değişir → reapply).
@@ -61,9 +59,6 @@ struct PropertyMapView: UIViewRepresentable {
             guard let center = map?.mapboxMap.cameraState.center else { return }
             c.parent.onRegionChange?(center)
             c.reapply()
-            // Orbit'i İLK idle'da başlat = uydu tile'ları İNDİKTEN sonra (siyah harita önlenir).
-            // Orbit merkezi sabit tutar (yalnız bearing) → yeni tile gerekmez, aynı görüntü döner.
-            if c.parent.cinematic { DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { c.startCinematic() } }
         }.store(in: &c.cancelables)
 
         return map
@@ -75,7 +70,8 @@ struct PropertyMapView: UIViewRepresentable {
         // "Konumuma git" hedefi değiştiyse oraya uç
         if let t = flyTarget, context.coordinator.lastFly?.latitude != t.latitude || context.coordinator.lastFly?.longitude != t.longitude {
             context.coordinator.lastFly = t
-            uiView.camera.fly(to: CameraOptions(center: t, zoom: 14, pitch: 52), duration: 1.2)
+            // Tanıtımda YAVAŞ sinematik uçuş (4 sn); her uçuş sonrası kamera DURUR → tile iner + etiketler belirir
+            uiView.camera.fly(to: CameraOptions(center: t, zoom: cinematic ? 15 : 14, pitch: cinematic ? 48 : 52), duration: cinematic ? 4.0 : 1.2)
         }
     }
 
@@ -89,28 +85,7 @@ struct PropertyMapView: UIViewRepresentable {
         var lastReapply: Double = 0
         private var index: [String: Property] = [:]
 
-        // ── Sinematik orbit (tanıtım): yavaş sürekli kamera dönüşü + hafif yaklaşma ──
-        private var orbitLink: CADisplayLink?
-        private var orbitBearing: Double = 0
-        func startCinematic() {
-            guard orbitLink == nil, let map else { return }
-            orbitBearing = map.mapboxMap.cameraState.bearing
-            let link = CADisplayLink(target: self, selector: #selector(orbitTick))
-            link.preferredFramesPerSecond = 30
-            link.add(to: .main, forMode: .common)
-            orbitLink = link
-        }
-        @objc private func orbitTick() {
-            guard let map else { return }
-            // ÇOK yavaş dönüş + düşük pitch → simülatörün düşük FPS'inde bile akıcı görünür
-            // (kareler arası fark minimal) ve motion-interpolation temiz çalışır.
-            orbitBearing += 0.05                              // ~1.5°/sn sinematik
-            let c = map.mapboxMap.cameraState
-            map.mapboxMap.setCamera(to: CameraOptions(center: c.center, bearing: orbitBearing, pitch: 40))
-        }
-
         init(_ parent: PropertyMapView) { self.parent = parent }
-        deinit { orbitLink?.invalidate() }
 
         var lastSig = ""
 
