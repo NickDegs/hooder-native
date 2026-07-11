@@ -21,13 +21,20 @@ final class OfflineTileDownloader {
         case failed(String)
     }
 
-    private(set) var status: Status = .idle
+    private(set) var status: Status = .idle {
+        didSet {
+            // Tanıtımda tile'lar hazır olunca orbit'i tetikle (RootView bunu bekliyor)
+            if Demo.active, case .ready = status { DemoSignals.shared.tilesReady = true }
+        }
+    }
 
     private let tileStore = TileStore.default
     private let offlineManager = OfflineManager()
 
-    // Bu bölge için tekil kimlikler
-    private let regionId = "home-region"
+    // Bölge kimliği: NORMAL kullanımda sabit "home-region". TANITIMDA her şehir KENDİ
+    // tile'ını indirsin diye merkeze göre TEKİL (yoksa sadece ilk şehir iner, gerisi
+    // online streaming'e düşer → CI'da boş/siyah harita).
+    private var regionId = "home-region"
     private let styleURI: StyleURI = .satelliteStreets
 
     // İlerleme takibi (stil + döşeme ayrı gelir, birleştirip tek yüzde veririz)
@@ -44,6 +51,15 @@ final class OfflineTileDownloader {
     func ensureOffline(center: CLLocationCoordinate2D,
                        radiusDegrees: Double = 0.06,
                        zoomRange: ClosedRange<UInt8> = 0...16) {
+        // TANITIM: her şehir kendi tile'ını indirsin → merkeze göre tekil id + hızlı kapsam
+        // (küçük yarıçap + yüksek zoom bandı → hızlı iner, orbit görüşü net).
+        var radiusDegrees = radiusDegrees
+        var zoomRange = zoomRange
+        if Demo.active {
+            regionId = String(format: "demo-%.3f-%.3f", center.latitude, center.longitude)
+            radiusDegrees = 0.028
+            zoomRange = 12...16
+        }
         // Zaten indirildiyse (önceki açılış) tekrar indirme — diskten hazır.
         tileStore.allTileRegions { [weak self] result in
             guard let self else { return }

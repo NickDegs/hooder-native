@@ -52,6 +52,14 @@ jobs:
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl privacy "$UDID" grant location "$BUNDLE" || true
           mkdir -p out
+          # SDK ISINDIRMA: ilk gerçek şehir soğuk-başlangıçta boş render veriyordu (Mapbox
+          # cold-init ~30-40sn). Önce atıl bir launch → framework/tile cache ısınsın, sonra terminate.
+          echo "=== warmup ==="
+          xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang en -demoLat 40.7549 -demoLng -73.9840 \
+            -demoKey "$HOODER_DEMO_KEY" -AppleLanguages "(en)" -AppleLocale "en_US" || true
+          sleep 45
+          xcrun simctl terminate "$UDID" $BUNDLE 2>/dev/null || true
+          sleep 2
           # name  lat  lng   (dünyanın en meşhur şehirleri — hepsi İngilizce UI)
           CITIES="
           newyork:40.7549:-73.9840
@@ -76,7 +84,7 @@ jobs:
             sleep 2
             xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang en -demoLat "$lat" -demoLng "$lng" \
               -demoKey "$HOODER_DEMO_KEY" -AppleLanguages "(en)" -AppleLocale "en_US"
-            sleep 54
+            sleep 62
             kill -INT $REC 2>/dev/null || true
             wait $REC 2>/dev/null || true
             sleep 1

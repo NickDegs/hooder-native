@@ -58,11 +58,12 @@ struct RootView: View {
         var waited = 0.0
         while waited < 35, feed.all.count < 30 { await wait(1); waited += 1 }   // mülkler insin
         game.demoSeed(feed.all)                           // Portföy + net değer DOLU görünsün
-        // Mapbox SDK config servisi + ilk tile indirmesi CI'da ~30-40sn sürüyor. Kamera SABİT
-        // dururken uzun bekle → tile'lar TAM cache'lensin + render olsun (ölü başlangıç post'ta kesilir).
-        // Tile'lar cache'lendikten SONRA orbit başlar → cache'li tile üzerinde AKICI 3D dönüş
-        // (tile-yükleme takılması yok = "donma" yok). Etiketler/fiyat baloncukları kamerayla döner.
-        await wait(34.0)
+        // Tile'lar GERÇEKTEN hazır olana kadar bekle (sabit süre değil): offline indirme bitince
+        // DemoSignals.tilesReady=true olur → orbit dolu render üzerinde başlar (boş/siyah harita
+        // üzerinde dönmez). Emniyet için üst sınır 55sn + ekstra 4sn render otursun.
+        var w = 0.0
+        while !DemoSignals.shared.tilesReady, w < 55 { await wait(1); w += 1 }
+        await wait(4.0)
         demoOrbit = true                                  // ← SÜREKLİ AKICI SİNEMATİK ORBİT BAŞLA
         await wait(13.0)                                  // 13sn kesintisiz akıcı orbit (montaj bundan kesilir)
         if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // gerçek mülk baloncuğu → detay

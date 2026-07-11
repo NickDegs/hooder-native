@@ -1,5 +1,14 @@
 import Foundation
 import CoreLocation
+import Observation
+
+// ── Tanıtım sinyalleri: offline tile'lar hazır olunca orbit BUNU bekler ──────────
+// Sabit süre beklemek yerine (bazı şehirlerde tile'lar geç iniyor → boş harita üzerinde
+// orbit) gerçek "hazır" sinyaliyle senkronize olur. Böylece her şehir dolu render'da döner.
+@MainActor @Observable final class DemoSignals {
+    static let shared = DemoSignals()
+    var tilesReady = false
+}
 
 // ── Otomatik tanıtım / tur modu ───────────────────────────────────────────────
 // Yalnız `-demo` argümanıyla açılır (App Store önizleme + reklam videosu çekimi için).
