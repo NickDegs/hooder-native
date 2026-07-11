@@ -7,6 +7,7 @@ struct MapScreen: View {
     var feed: PropertyFeed
     var onSelect: (Property) -> Void
     var externalFly: CLLocationCoordinate2D? = nil   // tanıtım turu: dışarıdan kamera hedefi
+    var cinematicOrbit: Bool = false                 // tanıtım: tile'lar hazır olunca sürekli orbit
 
     // Tanıtım turunda -demoLat/-demoLng ile verilen şehirde başla (yoksa Manhattan)
     private let start = Demo.active ? (Demo.cityCenter ?? Demo.newYork)
@@ -59,7 +60,8 @@ struct MapScreen: View {
                     loadCity(c)   // bulunduğun şehri komple indir (zaten inmişse anında)
                 },
                 flyTarget: flyTarget,
-                cinematic: Demo.active
+                cinematic: Demo.active,
+                cinematicOrbit: cinematicOrbit
             )
             .ignoresSafeArea()
 

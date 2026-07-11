@@ -11,6 +11,7 @@ struct RootView: View {
     @State private var syncCounter = 0
     @State private var connecting = true
     @State private var demoFly: CLLocationCoordinate2D?   // tanıtım turu kamera hedefi
+    @State private var demoOrbit = false                  // tanıtım: tile'lar hazır → sürekli akıcı orbit
 
     // saniyede bir gelir tahakkuku
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -57,28 +58,22 @@ struct RootView: View {
         var waited = 0.0
         while waited < 35, feed.all.count < 30 { await wait(1); waited += 1 }   // mülkler insin
         game.demoSeed(feed.all)                           // Portföy + net değer DOLU görünsün
-        // Mapbox SDK config servisi + ilk tile indirmesi CI'da ~30-40sn sürüyor (loglarda
-        // ConfigurationServiceWorker/AsyncObject görevleri t=59'a kadar). Tur bundan ÖNCE
-        // başlarsa tüm uçuşlar SİYAH harita üzerinde geçer. Bu yüzden kamera SABİT dururken
-        // uzun bekle → tile'lar insin + render olsun; ölü başlangıç post'ta kesilir.
-        await wait(32.0)
-        demoFly = cityStops[0]                       // yavaş uçuş → Grand Central
-        await wait(7.0)                                   // uçuş 4sn + durak (tile iner, etiketler belirir)
-        if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
-        await wait(4.0)
+        // Mapbox SDK config servisi + ilk tile indirmesi CI'da ~30-40sn sürüyor. Kamera SABİT
+        // dururken uzun bekle → tile'lar TAM cache'lensin + render olsun (ölü başlangıç post'ta kesilir).
+        // Tile'lar cache'lendikten SONRA orbit başlar → cache'li tile üzerinde AKICI 3D dönüş
+        // (tile-yükleme takılması yok = "donma" yok). Etiketler/fiyat baloncukları kamerayla döner.
+        await wait(34.0)
+        demoOrbit = true                                  // ← SÜREKLİ AKICI SİNEMATİK ORBİT BAŞLA
+        await wait(13.0)                                  // 13sn kesintisiz akıcı orbit (montaj bundan kesilir)
+        if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // gerçek mülk baloncuğu → detay
+        await wait(3.5)
         selected = nil
-        await wait(1.0)
-        // Tüm uygulamayı özetle (statik ekranlar → simülatörde akıcı)
-        withAnimation(Motion.smooth) { tab = .market };    await wait(3.0)   // canlı piyasa
-        withAnimation(Motion.smooth) { tab = .portfolio }; await wait(3.0)   // sahip olunan mülkler (dolu)
-        withAnimation(Motion.smooth) { tab = .forex };     await wait(3.0)   // döviz al-sat
-        withAnimation(Motion.smooth) { tab = .store };     await wait(3.0)   // VIP mağaza
-        withAnimation(Motion.smooth) { tab = .rankings };  await wait(3.0)   // liderlik tablosu
+        await wait(13.0)                                  // orbit sürerken daha fazla akıcı hareket
+        // Kısa uygulama özeti (statik ekranlar → simülatörde akıcı); harita arkada dönmeye devam eder
+        withAnimation(Motion.smooth) { tab = .market };    await wait(2.6)   // canlı piyasa
+        withAnimation(Motion.smooth) { tab = .portfolio }; await wait(2.6)   // dolu portföy
         withAnimation(Motion.smooth) { tab = .map };       await wait(2.0)
-        demoFly = cityStops[1]                        // yavaş uçuş → Financial District
-        await wait(8.0)
-        demoFly = cityStops[2]                        // yavaş uçuş → Central Park (final)
-        await wait(8.0)
+        await wait(12.0)                                  // final akıcı orbit
     }
 
     // İlk açılış akışı: ZORUNLU sunucu kimliği → sonra cüzdan/store
@@ -99,7 +94,8 @@ struct RootView: View {
             Theme.bg.ignoresSafeArea()
 
             // Harita HER ZAMAN arka planda
-            MapScreen(game: game, feed: feed, onSelect: { selected = $0 }, externalFly: demoFly)
+            MapScreen(game: game, feed: feed, onSelect: { selected = $0 }, externalFly: demoFly,
+                      cinematicOrbit: demoOrbit)
                 .ignoresSafeArea()
 
             // Harita-dışı ekranlar: alttan kayan cam panel (yumuşak geçiş)

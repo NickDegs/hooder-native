@@ -1,0 +1,92 @@
+name: Preview Global EN (10 city, live orbit)
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  videos:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode seç
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1); [ -z "$XC" ] && XC=/Applications/Xcode.app
+          sudo xcode-select -s "$XC"; xcodebuild -version
+
+      - name: XcodeGen + token
+        env:
+          MAPBOX_PUBLIC_TOKEN:   ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+          MAPBOX_DOWNLOAD_TOKEN: ${{ secrets.MAPBOX_DOWNLOAD_TOKEN }}
+          HOODER_APP_KEY:        ${{ secrets.HOODER_APP_KEY }}
+        run: |
+          brew install xcodegen
+          printf 'machine api.mapbox.com\n  login mapbox\n  password %s\n' "$MAPBOX_DOWNLOAD_TOKEN" > ~/.netrc; chmod 600 ~/.netrc
+          sed -i '' "s|pk.PUBLIC_TOKEN_BURAYA|$MAPBOX_PUBLIC_TOKEN|" project.yml
+          sed -i '' "s|HOODER_APP_KEY_BURAYA|$HOODER_APP_KEY|" Services/EconomyService.swift
+          xcodegen generate
+
+      - name: Simulator için derle
+        run: |
+          set -o pipefail
+          xcodebuild -project Hooder.xcodeproj -scheme Hooder -configuration Release \
+            -sdk iphonesimulator -derivedDataPath dd -clonedSourcePackagesDirPath /tmp/spm \
+            CODE_SIGNING_ALLOWED=NO build | xcbeautify || xcodebuild -project Hooder.xcodeproj -scheme Hooder -configuration Release -sdk iphonesimulator -derivedDataPath dd -clonedSourcePackagesDirPath /tmp/spm CODE_SIGNING_ALLOWED=NO build
+          echo "APP=$(ls -d dd/Build/Products/Release-iphonesimulator/*.app | head -1)" >> "$GITHUB_ENV"
+
+      - name: 10 şehri İNGİLİZCE + canlı orbit kaydet
+        env:
+          HOODER_DEMO_KEY: ${{ secrets.HOODER_DEMO_KEY }}
+        run: |
+          set -e
+          BUNDLE=app.realvirtuality.landlord
+          RUNTIME=$(xcrun simctl list runtimes ios -j | python3 -c "import sys,json;r=[x for x in json.load(sys.stdin)['runtimes'] if x['isAvailable']];print(r[-1]['identifier'])")
+          DT=$(xcrun simctl list devicetypes -j | python3 -c "import sys,json;d=[x for x in json.load(sys.stdin)['devicetypes'] if 'iPhone' in x['name'] and 'Pro Max' in x['name']];print(d[-1]['identifier'])")
+          UDID=$(xcrun simctl create "hooder-global" "$DT" "$RUNTIME")
+          xcrun simctl boot "$UDID"; sleep 8
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl privacy "$UDID" grant location "$BUNDLE" || true
+          mkdir -p out
+          # name  lat  lng   (dünyanın en meşhur şehirleri — hepsi İngilizce UI)
+          CITIES="
+          newyork:40.7549:-73.9840
+          dubai:25.1972:55.2744
+          paris:48.8584:2.2945
+          rome:41.8902:12.4922
+          barcelona:41.4036:2.1744
+          berlin:52.5163:13.3777
+          moscow:55.7520:37.6175
+          tokyo:35.6586:139.7454
+          mumbai:18.9220:72.8347
+          seoul:37.5512:126.9882
+          "
+          for row in $CITIES; do
+            [ -z "$row" ] && continue
+            name=$(echo $row | cut -d: -f1)
+            lat=$(echo $row | cut -d: -f2); lng=$(echo $row | cut -d: -f3)
+            echo "=== $name @ $lat,$lng ==="
+            xcrun simctl terminate "$UDID" $BUNDLE 2>/dev/null || true
+            xcrun simctl io "$UDID" recordVideo --codec h264 --force "out/hooder_${name}.mov" &
+            REC=$!
+            sleep 2
+            xcrun simctl launch "$UDID" $BUNDLE -demo -demoLang en -demoLat "$lat" -demoLng "$lng" \
+              -demoKey "$HOODER_DEMO_KEY" -AppleLanguages "(en)" -AppleLocale "en_US"
+            sleep 54
+            kill -INT $REC 2>/dev/null || true
+            wait $REC 2>/dev/null || true
+            sleep 1
+          done
+          xcrun simctl shutdown "$UDID" 2>/dev/null || true
+          xcrun simctl delete "$UDID" 2>/dev/null || true
+          echo "=== kayıtlar ==="; ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hooder-global-cities
+          path: out/*.mov
+          retention-days: 7

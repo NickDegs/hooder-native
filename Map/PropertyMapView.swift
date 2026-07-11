@@ -20,6 +20,7 @@ struct PropertyMapView: UIViewRepresentable {
     var onDense: ((Bool) -> Void)? = nil
     var flyTarget: CLLocationCoordinate2D? = nil   // "konumuma git" → buraya uç
     var cinematic: Bool = false                    // tanıtım: yavaş sürekli kamera orbiti
+    var cinematicOrbit: Bool = false               // true olunca SÜREKLİ akıcı orbit başlar (tile'lar cache'li)
 
     // Symbol layer'a verilen mülk sayısı (Mapbox off-screen cull + collision yapar; yüksek olabilir).
     private let maxMarkers = 1000
@@ -73,6 +74,8 @@ struct PropertyMapView: UIViewRepresentable {
             // Tanıtımda YAVAŞ sinematik uçuş (4 sn); her uçuş sonrası kamera DURUR → tile iner + etiketler belirir
             uiView.camera.fly(to: CameraOptions(center: t, zoom: cinematic ? 15 : 14, pitch: cinematic ? 48 : 52), duration: cinematic ? 4.0 : 1.2)
         }
+        // Tanıtım: tile'lar cache'lendikten sonra SÜREKLİ akıcı orbit başlat (tek sefer)
+        if cinematicOrbit { context.coordinator.startOrbit() }
     }
 
     // ── Coordinator ───────────────────────────────────────────────────────────
@@ -84,8 +87,33 @@ struct PropertyMapView: UIViewRepresentable {
         var lastFly: CLLocationCoordinate2D?
         var lastReapply: Double = 0
         private var index: [String: Property] = [:]
+        private var orbitStarted = false
 
         init(_ parent: PropertyMapView) { self.parent = parent }
+
+        // ── SÜREKLİ SİNEMATİK ORBİT ───────────────────────────────────────────────
+        // Tile'lar offline cache'lendikten SONRA çağrılır. Sabit açısal hızla bearing'i
+        // çeviren, hafifçe yakınlaşan doğrusal ease zinciri → GPU'da AKICI 3D orbit
+        // (cache'li tile üzerinde tile-yükleme takılması YOK). Pill'ler kamerayla döner.
+        func startOrbit() {
+            guard !orbitStarted, let map else { return }
+            orbitStarted = true
+            let s = map.mapboxMap.cameraState
+            let center = s.center
+            let zoom = max(s.zoom, 15.0)
+            var bearing = s.bearing
+            // Dramatik 3D için önce yumuşakça pitch'i kaldır + hafif yakınlaş
+            map.camera.ease(to: CameraOptions(center: center, zoom: zoom, bearing: bearing, pitch: 62),
+                            duration: 2.2, curve: .easeInOut) { [weak self] _ in self?.orbitLeg(center: center, zoom: zoom, bearing: bearing) }
+        }
+        private func orbitLeg(center: CLLocationCoordinate2D, zoom: CGFloat, bearing: CGFloat) {
+            guard orbitStarted, let map else { return }
+            let next = bearing + 40   // her bacakta 40° → sürekli akıcı dönüş
+            map.camera.ease(to: CameraOptions(center: center, zoom: zoom, bearing: next, pitch: 62),
+                            duration: 5.0, curve: .linear) { [weak self] _ in
+                self?.orbitLeg(center: center, zoom: zoom, bearing: next)
+            }
+        }
 
         var lastSig = ""
 
