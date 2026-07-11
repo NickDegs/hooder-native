@@ -42,6 +42,8 @@ struct SettingsScreen: View {
                     }
                 }
 
+                ReferralCard(game: game)
+
                 GlassCard {
                     VStack(alignment: .leading, spacing: 6) {
                         Label("Offline Uydu Harita", systemImage: "square.and.arrow.down.fill")
@@ -112,5 +114,90 @@ struct SettingsScreen: View {
             .padding(.horizontal, 14).padding(.vertical, 8).padding(.bottom, 20)
         }
         .onAppear { refreshCacheInfo() }
+    }
+}
+
+// ── Davet (referral) kartı — kendi kodun + paylaş + kod gir ────────────────────
+private struct ReferralCard: View {
+    var game: GameState
+    @State private var info: ReferralInfo?
+    @State private var entry = ""
+    @State private var msg: String?
+    @State private var msgOK = false
+    @State private var busy = false
+    @State private var l10n = L10n.shared
+
+    var body: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(l10n.t("referral_title"), systemImage: "gift.fill")
+                    .font(.bodyB).foregroundStyle(Theme.gold)
+                Text(l10n.t("referral_sub"))
+                    .font(.captionB).foregroundStyle(Theme.textSub)
+
+                if let info, let code = info.code {
+                    HStack {
+                        Text(code).font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .foregroundStyle(Theme.text).tracking(3)
+                        Spacer()
+                        ShareLink(item: shareText(code)) {
+                            Label(l10n.t("referral_share"), systemImage: "square.and.arrow.up")
+                                .font(.captionB).foregroundStyle(.white)
+                                .padding(.horizontal, 14).padding(.vertical, 8)
+                                .background(Theme.primary, in: Capsule())
+                        }
+                    }
+                    .padding(.vertical, 2)
+
+                    if info.invited > 0 {
+                        Text(String(format: l10n.t("referral_count"), info.invited, formatMoney(info.earned)))
+                            .font(.captionB).foregroundStyle(Theme.green)
+                    }
+
+                    if !info.used_code {
+                        HStack(spacing: 8) {
+                            TextField(l10n.t("referral_enter_ph"), text: $entry)
+                                .textInputAutocapitalization(.characters)
+                                .autocorrectionDisabled()
+                                .font(.bodyB).foregroundStyle(Theme.text)
+                                .padding(.horizontal, 12).frame(height: 44)
+                                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                            GlassButton(tint: Theme.green, action: redeem) { Text(l10n.t("confirm")) }
+                        }
+                    }
+                }
+                if let msg {
+                    Text(msg).font(.captionB)
+                        .foregroundStyle(msgOK ? Theme.green : Color(red: 0.9, green: 0.4, blue: 0.4))
+                }
+            }
+        }
+        .task { info = await BackendService.shared.referralInfo() }
+    }
+
+    private func shareText(_ code: String) -> String {
+        l10n.t("referral_share_msg").replacingOccurrences(of: "%CODE%", with: code)
+    }
+
+    private func redeem() {
+        let code = entry.trimmingCharacters(in: .whitespaces).uppercased()
+        guard code.count >= 4, !busy else { return }
+        busy = true
+        Task {
+            let r = await BackendService.shared.redeemReferral(code: code)
+            await MainActor.run {
+                busy = false
+                if r.ok {
+                    msgOK = true
+                    msg = String(format: l10n.t("referral_ok"), formatMoney(r.reward))
+                    game.cash += r.reward                 // anında yansıt (sunucu zaten ekledi)
+                    entry = ""
+                    Task { info = await BackendService.shared.referralInfo() }
+                } else {
+                    msgOK = false
+                    msg = l10n.t("referral_err")
+                }
+            }
+        }
     }
 }

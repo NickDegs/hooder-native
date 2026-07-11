@@ -87,6 +87,38 @@ final class L10n {
         "sub_disclosure":["tr":"Hooder VIP otomatik yenilenen bir aboneliktir. Ücret satın alma onayında Apple Kimliğine yansır; dönem bitiminden en az 24 saat önce iptal edilmezse otomatik yenilenir. Ayarlar → Apple Kimliği → Abonelikler'den istediğin zaman yönet/iptal et.","en":"Hooder VIP is an auto-renewable subscription. Payment is charged to your Apple ID at confirmation; it renews automatically unless canceled at least 24 hours before the period ends. Manage or cancel anytime in Settings → Apple ID → Subscriptions."],
         "privacy":["tr":"Gizlilik Politikası","en":"Privacy Policy","es":"Privacidad","fr":"Confidentialité","de":"Datenschutz","it":"Privacy","pt":"Privacidade","ru":"Конфиденциальность","ar":"الخصوصية","zh":"隐私政策","ja":"プライバシー","ko":"개인정보","az":"Məxfilik","uk":"Конфіденційність","fa":"حریم خصوصی","hi":"गोपनीयता"],
         "terms":["tr":"Kullanım Şartları","en":"Terms of Use","es":"Términos","fr":"Conditions","de":"Nutzungsbedingungen","it":"Termini","pt":"Termos","ru":"Условия","ar":"الشروط","zh":"使用条款","ja":"利用規約","ko":"이용약관","az":"İstifadə şərtləri","uk":"Умови","fa":"شرایط","hi":"शर्तें"],
+
+        // ── Onboarding (ilk açılış karşılaması) ──
+        "ob_skip":         ["tr":"Atla","en":"Skip"],
+        "ob_next":         ["tr":"İleri","en":"Next"],
+        "ob_start":        ["tr":"Oynamaya başla","en":"Start playing"],
+        "ob_notify_later": ["tr":"Şimdi değil","en":"Not now"],
+        "ob_1_title": ["tr":"Gerçek dünyayı ele geçir","en":"Own the real world"],
+        "ob_1_body":  ["tr":"Canlı uydu haritasında gerçek binaları, gerçek konumlarında satın al.","en":"Buy real buildings at their true locations on a live satellite map."],
+        "ob_2_title": ["tr":"Tek canlı ekonomi","en":"One living economy"],
+        "ob_2_body":  ["tr":"Herkes tek paylaşımlı piyasada işlem yapar — dünya alıp sattıkça fiyatlar oynar.","en":"Every player trades in one shared market — prices move as the world buys and sells."],
+        "ob_3_title": ["tr":"15 milyon $ ile başla","en":"Start with $15M"],
+        "ob_3_body":  ["tr":"İlk mülkünü kap, döviz al-sat, rakipleri geç ve imparatorluğunu kur.","en":"Grab your first property, trade forex, outbid rivals and build your empire."],
+        "ob_4_title": ["tr":"Fırsatları kaçırma","en":"Never miss a deal"],
+        "ob_4_body":  ["tr":"Kiran biriktiğinde ya da bir rakip mülküne göz diktiğinde haberin olsun.","en":"Get a nudge when your income piles up or a rival moves on your turf."],
+
+        // ── Yerel retention bildirimleri ──
+        "notif_d1_title": ["tr":"💰 Kiran birikiyor","en":"💰 Your rent is piling up"],
+        "notif_d1_body":  ["tr":"Sen yokken mülklerin kazandı. Gel topla!","en":"Your properties earned while you were away. Come collect!"],
+        "notif_d3_title": ["tr":"🏙️ İmparatorluğun seni özledi","en":"🏙️ Your empire misses you"],
+        "notif_d3_body":  ["tr":"Rakipler haritayı kapıyor. Bölgeni geri al.","en":"Rivals are buying up the map. Reclaim your turf."],
+        "notif_d7_title": ["tr":"📉 Fiyatlar oynuyor","en":"📉 Prices are on the move"],
+        "notif_d7_body":  ["tr":"Sen yokken piyasa değişti. Yeni fırsatlar seni bekliyor.","en":"The market shifted while you were gone. New deals await."],
+
+        // ── Referral (davet) ──
+        "referral_title":     ["tr":"Arkadaşını davet et","en":"Invite friends"],
+        "referral_sub":       ["tr":"Davet et → sen +$3M, arkadaşın +$2M kazanır.","en":"Invite a friend → you get +$3M, they get +$2M."],
+        "referral_share":     ["tr":"Paylaş","en":"Share"],
+        "referral_count":     ["tr":"%d davet · %@ kazandın","en":"%d invited · earned %@"],
+        "referral_enter_ph":  ["tr":"Davet kodu","en":"Invite code"],
+        "referral_ok":        ["tr":"✓ %@ hesabına eklendi!","en":"✓ %@ added to your account!"],
+        "referral_err":       ["tr":"Geçersiz veya kullanılmış kod","en":"Invalid or already-used code"],
+        "referral_share_msg": ["tr":"Hooder'da gerçek binalardan emlak imparatorluğu kur! Davet kodum: %CODE% — apps.apple.com/app/id6776767786","en":"Build a property empire from real buildings on Hooder! My invite code: %CODE% — apps.apple.com/app/id6776767786"],
     ]
 }
 

@@ -12,6 +12,10 @@ struct RootView: View {
     @State private var connecting = true
     @State private var demoFly: CLLocationCoordinate2D?   // tanıtım turu kamera hedefi
     @State private var demoOrbit = false                  // tanıtım: tile'lar hazır → sürekli akıcı orbit
+    // İlk açılış karşılaması (huniyi kapatır). Tanıtım/çekim modunda gösterilmez.
+    @State private var showOnboarding = !Demo.active && !Snapshot.active
+        && !UserDefaults.standard.bool(forKey: "hooder_onboarded")
+    @Environment(\.scenePhase) private var scenePhase
 
     // saniyede bir gelir tahakkuku
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -33,6 +37,16 @@ struct RootView: View {
                 return
             }
             await startup()
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView { withAnimation(Motion.smooth) { showOnboarding = false } }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .background: Task { await NotificationManager.shared.scheduleRetention() }
+            case .active:     NotificationManager.shared.cancelRetention()
+            default: break
+            }
         }
         .preferredColorScheme(.dark)
     }

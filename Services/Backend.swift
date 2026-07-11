@@ -16,6 +16,16 @@ struct Auction: Decodable, Identifiable {
     let endsAt: TimeInterval   // unix saniye
 }
 
+// Referral (davet) durumu
+struct ReferralInfo: Decodable {
+    let code: String?
+    let invited: Int
+    let earned: Double
+    let referrer_bonus: Double
+    let invitee_bonus: Double
+    let used_code: Bool
+}
+
 // ── Backend servisi (liderlik + açık artırma + transfer) ──────────────────────
 // Sunucu varsa canlı; yoksa sessizce son hâli/yerel veriyle çalışır (offline-tolerant).
 @MainActor
@@ -59,6 +69,26 @@ final class BackendService {
         let ok = await post("auctions/\(auctionId)/bid", json: ["amount": amount]) != nil
         if ok { await loadAuctions() }
         return ok
+    }
+
+    // ── Referral (davet) ───────────────────────────────────────────────────────
+    /// Kendi davet kodun + kaç kişi davet ettin + toplam kazanç.
+    func referralInfo() async -> ReferralInfo? {
+        guard let data = await get("referral") else { return nil }
+        return try? JSONDecoder().decode(ReferralInfo.self, from: data)
+    }
+
+    /// Başka birinin davet kodunu gir (bir kez): ikinize de nakit yansır.
+    /// Dönen: (başarılı mı, hata mesajı anahtarı, kazanılan nakit).
+    func redeemReferral(code: String) async -> (ok: Bool, reward: Double, error: String?) {
+        guard let data = await post("referral/redeem", json: ["code": code]) else {
+            return (false, 0, "referral_bad_code")
+        }
+        let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if let ok = obj?["ok"] as? Bool, ok {
+            return (true, (obj?["reward"] as? Double) ?? 0, nil)
+        }
+        return (false, 0, "referral_bad_code")
     }
 
     // ── HTTP yardımcıları ─────────────────────────────────────────────────────
