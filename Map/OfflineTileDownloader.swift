@@ -57,8 +57,8 @@ final class OfflineTileDownloader {
         var zoomRange = zoomRange
         if Demo.active {
             regionId = String(format: "demo-%.3f-%.3f", center.latitude, center.longitude)
-            radiusDegrees = 0.028
-            zoomRange = 12...16
+            radiusDegrees = 0.020        // küçük bölge → hızlı+güvenilir iner (rome geçen sefer timeout)
+            zoomRange = 13...16          // orbit görüşü zoom ~15; alt bandı kırpınca çok daha hızlı
         }
         // Zaten indirildiyse (önceki açılış) tekrar indirme — diskten hazır.
         tileStore.allTileRegions { [weak self] result in

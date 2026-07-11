@@ -62,19 +62,13 @@ struct RootView: View {
         // DemoSignals.tilesReady=true olur → orbit dolu render üzerinde başlar (boş/siyah harita
         // üzerinde dönmez). Emniyet için üst sınır 55sn + ekstra 4sn render otursun.
         var w = 0.0
-        while !DemoSignals.shared.tilesReady, w < 55 { await wait(1); w += 1 }
+        while !DemoSignals.shared.tilesReady, w < 42 { await wait(1); w += 1 }
         await wait(4.0)
-        demoOrbit = true                                  // ← SÜREKLİ AKICI SİNEMATİK ORBİT BAŞLA
-        await wait(13.0)                                  // 13sn kesintisiz akıcı orbit (montaj bundan kesilir)
-        if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // gerçek mülk baloncuğu → detay
-        await wait(3.5)
-        selected = nil
-        await wait(13.0)                                  // orbit sürerken daha fazla akıcı hareket
-        // Kısa uygulama özeti (statik ekranlar → simülatörde akıcı); harita arkada dönmeye devam eder
-        withAnimation(Motion.smooth) { tab = .market };    await wait(2.6)   // canlı piyasa
-        withAnimation(Motion.smooth) { tab = .portfolio }; await wait(2.6)   // dolu portföy
-        withAnimation(Motion.smooth) { tab = .map };       await wait(2.0)
-        await wait(12.0)                                  // final akıcı orbit
+        // SAF UZUN ORBİT: montaj için kesintisiz ~24sn akıcı 3D dönüş. Mülk detayı/sekme
+        // geçişi YOK (bunlar hem orbit'i kesiyor hem yanlış İstanbul mülkü açıyordu) → her
+        // pencere temiz orbit; montaj dedektörü rahat kesim yapar.
+        demoOrbit = true                                  // ← SÜREKLİ AKICI SİNEMATİK ORBİT
+        await wait(24.0)
     }
 
     // İlk açılış akışı: ZORUNLU sunucu kimliği → sonra cüzdan/store
