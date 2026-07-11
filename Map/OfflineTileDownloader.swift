@@ -56,9 +56,9 @@ final class OfflineTileDownloader {
         var radiusDegrees = radiusDegrees
         var zoomRange = zoomRange
         if Demo.active {
-            regionId = String(format: "demo-%.3f-%.3f", center.latitude, center.longitude)
-            radiusDegrees = 0.020        // küçük bölge → hızlı+güvenilir iner (rome geçen sefer timeout)
-            zoomRange = 13...16          // orbit görüşü zoom ~15; alt bandı kırpınca çok daha hızlı
+            regionId = String(format: "demo-v2-%.3f-%.3f", center.latitude, center.longitude)
+            radiusDegrees = 0.032        // GENİŞ bölge → orbit kenarlarında boş arazi olmasın
+            zoomRange = 14...17          // orbit zoom ~16.3; yüksek üst bant → kenarlarda net bina detayı
         }
         // Zaten indirildiyse (önceki açılış) tekrar indirme — diskten hazır.
         tileStore.allTileRegions { [weak self] result in

@@ -62,7 +62,7 @@ struct RootView: View {
         // DemoSignals.tilesReady=true olur → orbit dolu render üzerinde başlar (boş/siyah harita
         // üzerinde dönmez). Emniyet için üst sınır 55sn + ekstra 4sn render otursun.
         var w = 0.0
-        while !DemoSignals.shared.tilesReady, w < 42 { await wait(1); w += 1 }
+        while !DemoSignals.shared.tilesReady, w < 58 { await wait(1); w += 1 }   // geniş bölge (0.032°, z14-17) inmesi biraz uzun
         await wait(4.0)
         // SAF UZUN ORBİT: montaj için kesintisiz ~24sn akıcı 3D dönüş. Mülk detayı/sekme
         // geçişi YOK (bunlar hem orbit'i kesiyor hem yanlış İstanbul mülkü açıyordu) → her

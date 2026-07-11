@@ -100,16 +100,18 @@ struct PropertyMapView: UIViewRepresentable {
             orbitStarted = true
             let s = map.mapboxMap.cameraState
             let center = s.center
-            let zoom = max(s.zoom, 15.0)
+            let zoom = max(s.zoom, 16.3)   // daha yakın → kenarlarda bina kalır (boş arazi görünmez)
             var bearing = s.bearing
-            // Dramatik 3D için önce yumuşakça pitch'i kaldır + hafif yakınlaş
-            map.camera.ease(to: CameraOptions(center: center, zoom: zoom, bearing: bearing, pitch: 62),
+            // Dramatik 3D için önce yumuşakça pitch'i kaldır + hafif yakınlaş. Pitch 50: ufka az
+            // bakar → ekran kenarlarında tile'sız boş/uzak arazi görünmez.
+            map.camera.ease(to: CameraOptions(center: center, zoom: zoom, bearing: bearing, pitch: 50),
                             duration: 2.2, curve: .easeInOut) { [weak self] _ in self?.orbitLeg(center: center, zoom: zoom, bearing: bearing) }
         }
         private func orbitLeg(center: CLLocationCoordinate2D, zoom: CGFloat, bearing: CGFloat) {
             guard orbitStarted, let map else { return }
-            let next = bearing + 40   // her bacakta 40° → sürekli akıcı dönüş
-            map.camera.ease(to: CameraOptions(center: center, zoom: zoom, bearing: next, pitch: 62),
+            let next = bearing + 20   // YAVAŞ orbit: 20°/5s = 4°/s (eski 8°/s'nin yarısı) → kare
+                                       // başına yarı hareket → RIFE sonrası hiç kasmadan akıcı
+            map.camera.ease(to: CameraOptions(center: center, zoom: zoom, bearing: next, pitch: 50),
                             duration: 5.0, curve: .linear) { [weak self] _ in
                 self?.orbitLeg(center: center, zoom: zoom, bearing: next)
             }
