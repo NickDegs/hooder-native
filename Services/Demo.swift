@@ -23,9 +23,16 @@ enum Demo {
         return args[i + 1]
     }
 
-    // Tanıtımda uçulacak ikonik dünya merkezleri
-    static let istanbul = CLLocationCoordinate2D(latitude: 41.0256, longitude: 28.9744)  // Boğaz
+    // Tanıtımda uçulacak ikonik dünya merkezleri (varsayılan: Manhattan)
     static let newYork  = CLLocationCoordinate2D(latitude: 40.7549, longitude: -73.9840) // Manhattan
-    static let paris    = CLLocationCoordinate2D(latitude: 48.8584, longitude: 2.2945)   // Eyfel
-    static let dubai    = CLLocationCoordinate2D(latitude: 25.1972, longitude: 55.2744)  // Burj Khalifa
+
+    // Lokalize önizleme: `-demoLat 48.8584 -demoLng 2.2945` → o şehre uç.
+    // Her dilin App Store önizlemesi kendi ikonik şehrini gösterir (14 ayrı video).
+    static var cityCenter: CLLocationCoordinate2D? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-demoLat"), i + 1 < args.count,
+              let j = args.firstIndex(of: "-demoLng"), j + 1 < args.count,
+              let lat = Double(args[i + 1]), let lng = Double(args[j + 1]) else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lng)
+    }
 }

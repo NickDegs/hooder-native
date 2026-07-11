@@ -41,11 +41,16 @@ struct RootView: View {
     // arada mülk detayı ve kısa Market/Forex açılır. Kesim/FPS'i ffmpeg (minterpolate) yapar.
     // Manhattan içinde ikonik duraklar — her yavaş uçuş sonrası kamera DURUR → uydu tile'ı
     // iner + mülk etiketleri belirir (sürekli orbit tile yüklemeyi engelliyordu; bu çalışır).
-    private let manhattanStops = [
-        CLLocationCoordinate2D(latitude: 40.7527, longitude: -73.9772),  // Grand Central / Midtown
-        CLLocationCoordinate2D(latitude: 40.7069, longitude: -74.0100),  // Financial District
-        CLLocationCoordinate2D(latitude: 40.7648, longitude: -73.9730),  // Central Park South
-    ]
+    // Şehir merkezinden küçük ofsetli duraklar — hangi şehir olursa olsun (Demo.cityCenter)
+    // merkez çevresinde ~600m'lik yavaş uçuşlar; her durakta kamera durur → tile+etiket belirir.
+    private var cityStops: [CLLocationCoordinate2D] {
+        let c = Demo.cityCenter ?? Demo.newYork
+        return [
+            CLLocationCoordinate2D(latitude: c.latitude - 0.004, longitude: c.longitude + 0.006),
+            CLLocationCoordinate2D(latitude: c.latitude + 0.006, longitude: c.longitude - 0.004),
+            CLLocationCoordinate2D(latitude: c.latitude + 0.003, longitude: c.longitude + 0.005),
+        ]
+    }
 
     @MainActor private func runDemo() async {
         func wait(_ s: Double) async { try? await Task.sleep(nanoseconds: UInt64(s * 1_000_000_000)) }
@@ -57,7 +62,7 @@ struct RootView: View {
         // başlarsa tüm uçuşlar SİYAH harita üzerinde geçer. Bu yüzden kamera SABİT dururken
         // uzun bekle → tile'lar insin + render olsun; ölü başlangıç post'ta kesilir.
         await wait(32.0)
-        demoFly = manhattanStops[0]                       // yavaş uçuş → Grand Central
+        demoFly = cityStops[0]                       // yavaş uçuş → Grand Central
         await wait(7.0)                                   // uçuş 4sn + durak (tile iner, etiketler belirir)
         if let p = feed.all.max(by: { $0.price < $1.price }) { selected = p }   // değerli mülkü aç
         await wait(4.0)
@@ -70,9 +75,9 @@ struct RootView: View {
         withAnimation(Motion.smooth) { tab = .store };     await wait(3.0)   // VIP mağaza
         withAnimation(Motion.smooth) { tab = .rankings };  await wait(3.0)   // liderlik tablosu
         withAnimation(Motion.smooth) { tab = .map };       await wait(2.0)
-        demoFly = manhattanStops[1]                        // yavaş uçuş → Financial District
+        demoFly = cityStops[1]                        // yavaş uçuş → Financial District
         await wait(8.0)
-        demoFly = manhattanStops[2]                        // yavaş uçuş → Central Park (final)
+        demoFly = cityStops[2]                        // yavaş uçuş → Central Park (final)
         await wait(8.0)
     }
 

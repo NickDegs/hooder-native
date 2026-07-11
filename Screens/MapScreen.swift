@@ -8,8 +8,8 @@ struct MapScreen: View {
     var onSelect: (Property) -> Void
     var externalFly: CLLocationCoordinate2D? = nil   // tanıtım turu: dışarıdan kamera hedefi
 
-    // Tanıtım turunda doğrudan Manhattan'da başla (yurtdışı sinematik orbit)
-    private let start = Demo.active ? CLLocationCoordinate2D(latitude: 40.7549, longitude: -73.9840)
+    // Tanıtım turunda -demoLat/-demoLng ile verilen şehirde başla (yoksa Manhattan)
+    private let start = Demo.active ? (Demo.cityCenter ?? Demo.newYork)
                                     : CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)
     @State private var downloader = OfflineTileDownloader()
     @State private var location = LocationManager()
