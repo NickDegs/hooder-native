@@ -15,7 +15,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"             # Swift 5 dil modu (iOS 26 SDK + @Observable çalışır)
-    MARKETING_VERSION: "1.3"          # firma/klan özelliği — 1.2 review'da olduğu için AYRI 1.3 train'ine (TestFlight beta, 1.2'ye dokunmaz)
+    MARKETING_VERSION: "1.4"          # firma + MERKEZ BANKASI (ülke ekonomik savaşı) + altın — TestFlight beta
     CURRENT_PROJECT_VERSION: "1"      # CI build sırasında timestamp ile değiştirilir
     DEVELOPMENT_TEAM: SZF4T3P583
     TARGETED_DEVICE_FAMILY: "1"       # yalnız iPhone

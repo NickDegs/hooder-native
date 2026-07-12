@@ -54,6 +54,41 @@ struct MyFirm: Decodable {
 }
 private struct FirmsWrap: Decodable { let firms: [Firm] }
 
+// Merkez Bankası (ülke)
+struct Country: Decodable, Identifiable {
+    let cc: String
+    let name: String
+    let flag: String
+    let ccy: String
+    var id: String { cc }
+}
+struct CountryStanding: Decodable, Identifiable {
+    let cc: String
+    let name: String
+    let flag: String
+    let ccy: String
+    let power: Double
+    let players: Int
+    let treasury: Double
+    let rank: Int
+    var id: String { cc }
+}
+struct MyCountry: Decodable {
+    let cc: String
+    let name: String
+    let flag: String
+    let ccy: String
+    let power: Double
+    let players: Int
+    let rank: Int
+    let total: Int
+    let treasury: Double
+    let rate: Double?
+}
+private struct CountryListWrap: Decodable { let countries: [Country] }
+private struct CountryBoardWrap: Decodable { let countries: [CountryStanding] }
+private struct MyCountryWrap: Decodable { let country: MyCountry? }
+
 // ── Backend servisi (liderlik + açık artırma + transfer) ──────────────────────
 // Sunucu varsa canlı; yoksa sessizce son hâli/yerel veriyle çalışır (offline-tolerant).
 @MainActor
@@ -154,6 +189,22 @@ final class BackendService {
         guard let data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return obj["error"] as? String
     }
+
+    // ── Merkez Bankası (ülke) ──────────────────────────────────────────────────
+    func countryList() async -> [Country] {
+        guard let data = await get("country/list") else { return [] }
+        return (try? JSONDecoder().decode(CountryListWrap.self, from: data))?.countries ?? []
+    }
+    func countryMine() async -> MyCountry? {
+        guard let data = await get("country/mine") else { return nil }
+        return (try? JSONDecoder().decode(MyCountryWrap.self, from: data))?.country
+    }
+    func countryLeaderboard() async -> [CountryStanding] {
+        guard let data = await get("country/leaderboard") else { return [] }
+        return (try? JSONDecoder().decode(CountryBoardWrap.self, from: data))?.countries ?? []
+    }
+    func countryJoin(_ cc: String) async -> Bool { await post("country/join", json: ["cc": cc]) != nil }
+    func countryContribute(_ amount: Double) async -> Bool { await post("country/contribute", json: ["amount": amount]) != nil }
 
     // ── HTTP yardımcıları ─────────────────────────────────────────────────────
     private func get(_ path: String) async -> Data? {

@@ -15,12 +15,24 @@ struct FirmScreen: View {
     @State private var msg: String?
     @State private var msgOK = false
     @State private var busy = false
+    @State private var seg = 0
     @State private var l10n = L10n.shared
 
     private let emblems = ["🏢","🏙️","🏰","💎","👑","🦁","🚀","⚡️","🔥","🌆"]
 
     var body: some View {
-        ScrollView {
+        VStack(spacing: 0) {
+            Picker("", selection: $seg) {
+                Text(l10n.t("tab_firm")).tag(0)
+                Text(l10n.t("cb_title")).tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 14).padding(.top, 6).padding(.bottom, 2)
+
+            if seg == 1 {
+                CountryScreen(game: game)
+            } else {
+            ScrollView {
             VStack(spacing: 12) {
                 if let f = mine?.firm {
                     firmPanel(f)
@@ -39,6 +51,8 @@ struct FirmScreen: View {
             .padding(.horizontal, 14).padding(.vertical, 8).padding(.bottom, 24)
         }
         .task { await reload() }
+            }
+        }
     }
 
     // ── FİRMAM VAR ──
