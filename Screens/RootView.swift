@@ -203,6 +203,7 @@ private struct ScreenPanel: View {
                 case .forex:     ForexScreen(game: game)
                 case .store:     StoreScreen(game: game)
                 case .rankings:  RankingsScreen(game: game)
+                case .firm:      FirmScreen(game: game)
                 case .settings:  SettingsScreen(game: game)
                 case .map:       EmptyView()
                 }

@@ -2,15 +2,17 @@ import SwiftUI
 import UIKit
 
 enum AppTab: Int, CaseIterable, Identifiable {
-    case map, market, portfolio, forex, store, rankings, settings
+    case map, market, portfolio, forex, store, rankings, firm, settings
     var id: Int { rawValue }
     var titleKey: String {
         switch self { case .map: "tab_map"; case .market: "tab_market"; case .portfolio: "tab_portfolio"
-                      case .forex: "tab_forex"; case .store: "tab_store"; case .rankings: "tab_rankings"; case .settings: "tab_settings" }
+                      case .forex: "tab_forex"; case .store: "tab_store"; case .rankings: "tab_rankings"
+                      case .firm: "tab_firm"; case .settings: "tab_settings" }
     }
     var icon: String {
         switch self { case .map: "map.fill"; case .market: "chart.bar.fill"; case .portfolio: "briefcase.fill"
-                      case .forex: "dollarsign.arrow.circlepath"; case .store: "bag.fill"; case .rankings: "trophy.fill"; case .settings: "slider.horizontal.3" }
+                      case .forex: "dollarsign.arrow.circlepath"; case .store: "bag.fill"; case .rankings: "trophy.fill"
+                      case .firm: "building.2.fill"; case .settings: "slider.horizontal.3" }
     }
 }
 
