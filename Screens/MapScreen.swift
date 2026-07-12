@@ -57,7 +57,8 @@ struct MapScreen: View {
                 onSelect: onSelect,
                 onRegionChange: { c in
                     currentCenter = c
-                    loadCity(c)   // bulunduğun şehri komple indir (zaten inmişse anında)
+                    loadCity(c)                     // bulunduğun şehrin mülkleri (etiketler)
+                    downloader.prefetch(center: c)  // çevre tile'ları önden indir → kaydırmada kasma yok
                 },
                 flyTarget: flyTarget,
                 cinematic: Demo.active,
