@@ -15,6 +15,7 @@ enum Snapshot {
         case "portfolio": return .portfolio
         case "forex": return .forex
         case "store": return .store
+        case "firm": return .firm
         case "rankings": return .rankings
         case "settings": return .settings
         default: return .map

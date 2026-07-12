@@ -43,22 +43,26 @@ jobs:
           IPAD_DT=$(xcrun simctl list devicetypes -j | python3 -c "import sys,json;d=[x for x in json.load(sys.stdin)['devicetypes'] if 'iPad Pro' in x['name'] and ('13' in x['name'] or '12.9' in x['name'])];print(d[-1]['identifier'])")
           echo "runtime=$RUNTIME phone=$PHONE_DT ipad=$IPAD_DT"
           # ASC locale:iOS dil kodu (bash 3.2 — associative array YOK)
-          PAIRS="en-US:en tr:tr es-ES:es fr-FR:fr de-DE:de it:it pt-PT:pt-PT ru:ru ar-SA:ar zh-Hans:zh-Hans ja:ja ko:ko uk:uk hi:hi"
-          TABS="map market forex store"
+          PAIRS="en-US:en"
+          TABS="map market portfolio forex firm store rankings"
           mkdir -p shots
           shoot() {
             DEV_NAME=$1; DT=$2; TAG=$3
             [ -z "$DT" ] && { echo "cihaz tipi yok, atla: $TAG"; return 0; }
             UDID=$(xcrun simctl create "$DEV_NAME" "$DT" "$RUNTIME" 2>/dev/null) || { echo "create fail $TAG"; return 0; }
             xcrun simctl boot "$UDID" 2>/dev/null || true; sleep 8
+            # Temiz durum çubuğu (9:41 + tam batarya + sinyal) — App Store standardı
+            xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 2>/dev/null || true
             xcrun simctl install "$UDID" "$APP" 2>/dev/null || true
+            # KONUM İZNİNİ ÖNCEDEN VER → uygulama izin SORMAZ → o rezil pop-up ekranda ÇIKMAZ
+            xcrun simctl privacy "$UDID" grant location "$BUNDLE" 2>/dev/null || true
             for pair in $PAIRS; do
               loc=${pair%%:*}; code=${pair##*:}
               mkdir -p "shots/$loc"
               for tab in $TABS; do
                 xcrun simctl terminate "$UDID" $BUNDLE 2>/dev/null || true
                 xcrun simctl launch "$UDID" $BUNDLE -AppleLanguages "($code)" -AppleLocale "$code" -snapLang "$code" -snapTab "$tab" >/dev/null 2>&1 || true
-                if [ "$tab" = "map" ]; then sleep 13; else sleep 4; fi
+                if [ "$tab" = "map" ]; then sleep 14; else sleep 6; fi
                 xcrun simctl io "$UDID" screenshot "shots/$loc/${TAG}_${tab}.png" >/dev/null 2>&1 || true
               done
               echo "  $loc ($TAG) çekildi"
@@ -72,7 +76,7 @@ jobs:
           exit 0
 
       - name: App Store'a yükle
-        if: always()
+        if: false          # devre dışı — başlık overlay'i ekleyip sunucudan manuel yüklenecek
         env:
           ASC_KEY_ID:      ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID:   ${{ secrets.ASC_ISSUER_ID }}
