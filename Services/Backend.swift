@@ -120,10 +120,17 @@ final class BackendService {
         if let list = try? JSONDecoder().decode([Auction].self, from: data) { auctions = list }
     }
 
-    /// Kendi net değerini gönder (liderlik tablosuna girsin)
-    func submitScore(name: String, netWorth: Double) async {
-        let body = ["name": name, "netWorth": netWorth] as [String: Any]
-        _ = await post("score", json: body)
+    // NOT: Eski `submitScore` kaldırıldı. Liderlik tablosu SUNUCUDA cüzdan+mülklerden
+    // türetilir (users.username ile), istemci ne isim ne skor gönderir → sahtelenemez.
+
+    /// Liderlik tablosunda görünen adı değiştir. Dönüş: nil = başarılı, aksi halde hata kodu
+    /// ("taken" | "length" | "charset" | "error").
+    func setUsername(_ name: String) async -> String? {
+        let (code, data) = await postRaw("username", json: ["username": name])
+        if code > 0 && code < 400 { return nil }
+        if let data, let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let e = j["error"] as? String { return e }
+        return "error"
     }
 
     /// Açık artırmada teklif ver

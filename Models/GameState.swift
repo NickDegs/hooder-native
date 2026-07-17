@@ -11,6 +11,8 @@ final class GameState {
     private(set) var pendingIncome: Double = 0
     var isVIP: Bool = false          // aktif VIP aboneliği (StoreKit entitlement'tan)
     private(set) var fx: [String: FXPosition] = [:]   // döviz pozisyonları
+    /// Liderlik tablosunda görünen adım (sunucudan gelir; Ayarlar'dan değiştirilebilir).
+    var username: String = ""
 
     // VIP avantajları
     var incomeMultiplier: Double { isVIP ? 1.25 : 1.0 }   // +%25 günlük gelir
@@ -48,6 +50,7 @@ final class GameState {
         cash = w.cash
         ownedIds = Set(w.owned.map { $0.id })
         if let f = w.fx { fx = f }
+        if let n = w.username, !n.isEmpty { username = n }
         pendingIncome = 0
         save()
     }
@@ -222,6 +225,7 @@ struct WalletResp: Decodable {
     let cash: Double
     let owned: [OwnedItem]
     let fx: [String: FXPosition]?
+    let username: String?     // liderlik tablosunda görünen ad (sunucu-otoriter)
 }
 struct OwnedItem: Decodable { let id: String; let price: Double; let income: Double }
 struct CashResp: Decodable { let cash: Double }

@@ -32,7 +32,7 @@ struct PortfolioScreen: View {
                                 Text(p.category.emoji).font(.system(size: 22))
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(p.name).font(.bodyB).foregroundStyle(Theme.text)
-                                    Text("\(p.neighborhood) · +\(formatMoney(p.incomePerDay))/gün")
+                                    Text("\(p.neighborhood) · +\(formatMoney(p.incomePerDay))\(L10n.shared.t("per_day"))")
                                         .font(.captionB).foregroundStyle(Theme.textSub)
                                 }
                                 Spacer()

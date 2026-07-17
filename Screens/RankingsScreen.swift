@@ -9,9 +9,12 @@ struct RankingsScreen: View {
 
     private var board: [Row] {
         if backend.online && !backend.leaders.isEmpty {
-            var rows = backend.leaders.map { Row(id: $0.id, name: $0.name, net: $0.netWorth, me: $0.name == "SEN") }
+            // "Ben hangi satırım?" → İSİMLE değil, sunucudaki kendi uid'imle eşleştir.
+            // (İsim artık oyuncuya ait ve değişebilir; eski "SEN" karşılaştırması yanlıştı.)
+            let myUid = AuthService.shared.uid
+            var rows = backend.leaders.map { Row(id: $0.id, name: $0.name, net: $0.netWorth, me: $0.id == myUid) }
             if !rows.contains(where: { $0.me }) {
-                rows.append(Row(id: "me", name: "SEN", net: game.netWorth, me: true))
+                rows.append(Row(id: "me", name: game.username, net: game.netWorth, me: true))
             }
             return rows.sorted { $0.net > $1.net }
         }
@@ -22,7 +25,7 @@ struct RankingsScreen: View {
             ("Atlas Realty", 96_000_000), ("Boğaz Capital", 61_000_000),
         ]
         var all = bots.enumerated().map { Row(id: "bot\($0.offset)", name: $0.element.0, net: $0.element.1, me: false) }
-        all.append(Row(id: "me", name: "SEN", net: game.netWorth, me: true))
+        all.append(Row(id: "me", name: game.username, net: game.netWorth, me: true))
         return all.sorted { $0.net > $1.net }
     }
 
@@ -40,7 +43,7 @@ struct RankingsScreen: View {
                             Text("\(i + 1)").font(.h3)
                                 .foregroundStyle(i < 3 ? Theme.gold : Theme.textMuted).frame(width: 28)
                             Text(p.me ? "👤" : "🏢").font(.system(size: 20))
-                            Text(p.name).font(.bodyB).foregroundStyle(p.me ? Theme.primary : Theme.text)
+                            Text(p.me ? L10n.shared.t("you") : p.name).font(.bodyB).foregroundStyle(p.me ? Theme.primary : Theme.text)
                             Spacer()
                             Text(formatMoney(p.net)).font(.captionB).foregroundStyle(Theme.gold)
                         }
@@ -51,7 +54,7 @@ struct RankingsScreen: View {
             .padding(.horizontal, 14).padding(.vertical, 8).padding(.bottom, 20)
         }
         .task {
-            await backend.submitScore(name: "SEN", netWorth: game.netWorth)
+            // Skor/isim GÖNDERİLMEZ: liderlik tablosu sunucuda cüzdan+mülklerden türetilir.
             await backend.loadLeaders()
         }
     }

@@ -15,6 +15,9 @@ final class AuthService {
     static let shared = AuthService()
 
     private(set) var token: String?
+    /// Sunucudaki kendi kullanıcı kimliğim. Liderlik tablosunda "ben hangi satırım"ı
+    /// İSİMLE değil bununla eşleştiririz (isim artık oyuncuya ait ve değişebilir).
+    private(set) var uid: String? = UserDefaults.standard.string(forKey: "hooder_uid")
     private(set) var ready = false      // sunucu kimliği alındı mı → OYUN KİLİDİ
     private let base = URL(string: "https://realvirtuality.app/hooder-api")!
     private let attest = DCAppAttestService.shared
@@ -46,6 +49,10 @@ final class AuthService {
               (resp as? HTTPURLResponse)?.statusCode ?? 500 < 400,
               let j = try? JSONDecoder().decode(AnonResp.self, from: data) else { return nil }
         token = j.token
+        if let u = j.uid, !u.isEmpty {
+            uid = u
+            UserDefaults.standard.set(u, forKey: "hooder_uid")
+        }
         return token
     }
 

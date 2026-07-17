@@ -28,7 +28,7 @@ struct PropertyRowView: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(formatMoney(price)).font(.bodyB).foregroundStyle(Theme.text)
-                        Text("+\(formatMoney(property.incomePerDay))/gün")
+                        Text("+\(formatMoney(property.incomePerDay))\(L10n.shared.t("per_day"))")
                             .font(.captionB).foregroundStyle(Theme.green)
                     }
                     Spacer()

@@ -15,7 +15,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"             # Swift 5 dil modu (iOS 26 SDK + @Observable çalışır)
-    MARKETING_VERSION: "1.5"          # harita prefetch (geniş offline cache + kaydırma prefetch) — 1.4 review'da, ayrı 1.5 train
+    MARKETING_VERSION: "1.6"          # gerçek kullanıcı adı + liderlik kimliği (uid) + /gün→/day lokalizasyonu
     CURRENT_PROJECT_VERSION: "1"      # CI build sırasında timestamp ile değiştirilir
     DEVELOPMENT_TEAM: SZF4T3P583
     TARGETED_DEVICE_FAMILY: "1"       # yalnız iPhone

@@ -20,6 +20,8 @@ struct SettingsScreen: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                UsernameCard(game: game)
+
                 // Dil seçici (16 dil) — anında uygulanır
                 GlassCard {
                     VStack(alignment: .leading, spacing: 8) {
