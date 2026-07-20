@@ -51,8 +51,26 @@ final class GameState {
         ownedIds = Set(w.owned.map { $0.id })
         if let f = w.fx { fx = f }
         if let n = w.username, !n.isEmpty { username = n }
+        // Sahip olunan mülkleri haritaya GARANTİ enjekte et (tilequery döndürmese de kaybolmasın).
+        let ownedProps = w.owned.compactMap { Self.ownedToProperty(id: $0.id, price: $0.price, income: $0.income) }
+        if !ownedProps.isEmpty { PropertyFeed.shared.ensureOwned(ownedProps) }
         pendingIncome = 0
         save()
+    }
+
+    /// Sunucudan gelen sahip-mülk kaydını (id koordinat içerir) harita Property'sine çevir.
+    /// id biçimi: "bld_<lat>_<lng>"  |  "loc_<lat>_<lng>_<sınıf...>". Ayrıştırılamazsa nil.
+    static func ownedToProperty(id: String, price: Double, income: Double) -> Property? {
+        let parts = id.split(separator: "_").map(String.init)
+        guard parts.count >= 3, let lat = Double(parts[1]), let lng = Double(parts[2]) else { return nil }
+        let isLoc = parts[0] == "loc"
+        let name = (isLoc && parts.count > 3)
+            ? parts[3...].joined(separator: " ").capitalized
+            : "Mülküm"
+        return Property(id: id, name: name, neighborhood: "", city: "",
+                        category: isLoc ? .landmark : .building,
+                        price: price, incomePerDay: income > 0 ? income : price * 0.0009,
+                        prestige: isLoc ? 3 : 1, lat: lat, lng: lng)
     }
 
     /// Aksiyonu sunucuya yolla; sunucu reddederse (yetersiz/zaten sahip) gerçeğe dön,

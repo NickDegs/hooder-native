@@ -14,13 +14,29 @@ final class PropertyFeed {
     var endpoint: URL?
     private var timer: Timer?
 
-    /// Gerçek (tilequery) mülkleri listeye kat — id'ye göre tekilleştirir.
+    /// Gerçek (tilequery) mülkleri listeye kat — id'ye göre UPSERT (gerçek veri, sahip-mülk
+    /// placeholder'ının üstüne yazar → oyuncu binaya gidince doğru ad/detay görünür).
     func ingest(_ props: [Property]) {
         guard !props.isEmpty else { return }
-        var seen = Set(all.map(\.id))
+        var index = [String: Int](minimumCapacity: all.count)
+        for (i, p) in all.enumerated() { index[p.id] = i }
         var merged = all
-        for p in props where !seen.contains(p.id) { merged.append(p); seen.insert(p.id) }
+        for p in props {
+            if let i = index[p.id] { merged[i] = p }
+            else { index[p.id] = merged.count; merged.append(p) }
+        }
         all = merged
+    }
+
+    /// Sahip olunan mülkleri feed'e GARANTİ ekle (feed'de yoksa placeholder olarak).
+    /// Harita pin'leri tilequery'den gelir; sahip olunan bina o sonuçta dönmezse haritadan
+    /// "kaybolur" (ama sunucuda sahiplik durur). Bu, sahip binanın HER ZAMAN görünmesini sağlar.
+    /// Gerçek tilequery verisi gelince ingest() bu placeholder'ın üstüne yazar.
+    func ensureOwned(_ props: [Property]) {
+        guard !props.isEmpty else { return }
+        let seen = Set(all.map(\.id))
+        let missing = props.filter { !seen.contains($0.id) }
+        if !missing.isEmpty { all.append(contentsOf: missing) }
     }
 
     func start(interval: TimeInterval = 30) {
