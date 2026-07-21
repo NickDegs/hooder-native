@@ -16,7 +16,7 @@ struct PropertyRowView: View {
         GlassCard(tint: property.vipOnly ? Theme.gold : .clear) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("\(property.category.emoji) \(property.category.title.uppercased())")
+                    Text("\(property.category.emoji) \(L10n.shared.t("cat_" + property.category.rawValue).uppercased())")
                         .font(.label).foregroundStyle(Theme.primary)
                     Spacer()
                     Text(String(format: "%.1f%% ROI", property.roiPercent))

@@ -21,7 +21,7 @@ struct HUDBar: View {
                                 .background(Theme.gold, in: Capsule())
                         }
                     }
-                    Text("Sv.\(game.level) \(L10n.shared.t("investor"))").font(.label).foregroundStyle(Theme.textMuted)
+                    Text("\(L10n.shared.t("level_abbr"))\(game.level) \(L10n.shared.t("investor"))").font(.label).foregroundStyle(Theme.textMuted)
                 }
             }
             Spacer()
