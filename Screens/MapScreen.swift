@@ -9,9 +9,10 @@ struct MapScreen: View {
     var externalFly: CLLocationCoordinate2D? = nil   // tanıtım turu: dışarıdan kamera hedefi
     var cinematicOrbit: Bool = false                 // tanıtım: tile'lar hazır olunca sürekli orbit
 
-    // Tanıtım turunda -demoLat/-demoLng ile verilen şehirde başla (yoksa Manhattan)
+    // Tanıtım turunda -demoLat/-demoLng; ekran görüntüsü çekiminde -snapLat/-snapLng (Körfez);
+    // aksi halde İstanbul.
     private let start = Demo.active ? (Demo.cityCenter ?? Demo.newYork)
-                                    : CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)
+                                    : (Snapshot.cityCenter ?? CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784))
     @State private var downloader = OfflineTileDownloader()
     @State private var location = LocationManager()
     @State private var currentCenter = CLLocationCoordinate2D(latitude: 41.0082, longitude: 28.9784)

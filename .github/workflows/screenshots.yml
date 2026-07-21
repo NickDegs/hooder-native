@@ -43,8 +43,10 @@ jobs:
           IPAD_DT=$(xcrun simctl list devicetypes -j | python3 -c "import sys,json;d=[x for x in json.load(sys.stdin)['devicetypes'] if 'iPad Pro' in x['name'] and ('13' in x['name'] or '12.9' in x['name'])];print(d[-1]['identifier'])")
           echo "runtime=$RUNTIME phone=$PHONE_DT ipad=$IPAD_DT"
           # ASC locale:iOS dil kodu (bash 3.2 — associative array YOK)
-          PAIRS="en-US:en"
-          TABS="map market portfolio forex firm store rankings"
+          PAIRS="ar-SA:ar"
+          TABS="map market forex firm store rankings"
+          # Körfez reklamı: harita/mülkler DUBAI'de başlasın (Burj Khalifa / Downtown Dubai)
+          SNAPLAT=25.1972; SNAPLNG=55.2744
           mkdir -p shots
           shoot() {
             DEV_NAME=$1; DT=$2; TAG=$3
@@ -61,8 +63,9 @@ jobs:
               mkdir -p "shots/$loc"
               for tab in $TABS; do
                 xcrun simctl terminate "$UDID" $BUNDLE 2>/dev/null || true
-                xcrun simctl launch "$UDID" $BUNDLE -AppleLanguages "($code)" -AppleLocale "$code" -snapLang "$code" -snapTab "$tab" >/dev/null 2>&1 || true
-                if [ "$tab" = "map" ]; then sleep 14; else sleep 6; fi
+                xcrun simctl launch "$UDID" $BUNDLE -AppleLanguages "($code)" -AppleLocale "$code" -snapLang "$code" -snapTab "$tab" -snapLat "$SNAPLAT" -snapLng "$SNAPLNG" >/dev/null 2>&1 || true
+                # Dubai tile + mülk indirmesi için haritaya bol süre
+                if [ "$tab" = "map" ]; then sleep 20; else sleep 9; fi
                 xcrun simctl io "$UDID" screenshot "shots/$loc/${TAG}_${tab}.png" >/dev/null 2>&1 || true
               done
               echo "  $loc ($TAG) çekildi"
