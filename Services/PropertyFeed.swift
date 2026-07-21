@@ -62,6 +62,9 @@ final class PropertyFeed {
 
     // İstanbul çevresi örnek tohum mülkleri
     static func seed() -> [Property] {
+        // Ekran görüntüsü çekimi Körfez şehrinde (-snapLat/-snapLng) → Körfez landmark seed'i
+        // (reklamda Türk mülkü GÖRÜNMESİN, Dubai/Körfez ikonik mülkleri gelsin).
+        if Snapshot.cityCenter != nil { return gulfSeed() }
         let base = (lat: 41.0082, lng: 28.9784)
         let names: [(String, PropertyCategory, Double, Int)] = [
             ("Galata Rezidans", .building, 18_500_000, 3),
@@ -93,6 +96,38 @@ final class PropertyFeed {
         ]
         list += vip.map { v in
             Property(id: "vip_\(v.0.hashValue)", name: v.0, neighborhood: v.4, city: "İstanbul",
+                     category: v.1, price: v.2, incomePerDay: (v.2 * 0.0011).rounded(),
+                     prestige: v.3, lat: v.5, lng: v.6, vipOnly: true)
+        }
+        return list
+    }
+
+    // ── Körfez/Dubai seed (yalnız reklam ekran görüntüsü çekiminde) ───────────────
+    // Dubai'nin ikonik mülkleri; VIP olanlar (fiyatı en yüksek) listenin başında görünür.
+    static func gulfSeed() -> [Property] {
+        let reg: [(String, PropertyCategory, Double, Int, String, Double, Double)] = [
+            ("Dubai Marina Tower",   .building, 120_000_000, 4, "Dubai Marina", 25.0805, 55.1403),
+            ("Emirates Towers",      .office,   180_000_000, 4, "Trade Centre", 25.2172, 55.2825),
+            ("The Dubai Mall",       .retail,   200_000_000, 5, "Downtown",     25.1985, 55.2796),
+            ("Dubai Frame",          .landmark,  90_000_000, 4, "Zabeel",       25.2354, 55.3007),
+            ("Marina Beach Residence",.building,  60_000_000, 3, "JBR",         25.0785, 55.1330),
+            ("DIFC Gate",            .office,    150_000_000, 4, "DIFC",         25.2138, 55.2820),
+            ("Jumeirah Villa",       .building,  75_000_000, 3, "Jumeirah",     25.2048, 55.2430),
+            ("City Walk Loft",       .retail,    48_000_000, 3, "Al Wasl",      25.2050, 55.2610),
+        ]
+        var list = reg.map { v in
+            Property(id: "seed_\(v.0.hashValue)", name: v.0, neighborhood: v.4, city: "Dubai",
+                     category: v.1, price: v.2, incomePerDay: (v.2 * 0.0009).rounded(),
+                     prestige: v.3, lat: v.5, lng: v.6)
+        }
+        // En üstte görünecek prestijli Körfez landmark'ları (VIP)
+        let vip: [(String, PropertyCategory, Double, Int, String, Double, Double)] = [
+            ("Burj Khalifa Penthouse 👑", .landmark, 650_000_000, 5, "Downtown Dubai", 25.1972, 55.2744),
+            ("Palm Jumeirah Royal Villa 👑", .landmark, 480_000_000, 5, "Palm Jumeirah", 25.1124, 55.1390),
+            ("Burj Al Arab Royal Suite 👑", .hotel,   360_000_000, 5, "Umm Suqeim",     25.1412, 55.1853),
+        ]
+        list += vip.map { v in
+            Property(id: "vip_\(v.0.hashValue)", name: v.0, neighborhood: v.4, city: "Dubai",
                      category: v.1, price: v.2, incomePerDay: (v.2 * 0.0011).rounded(),
                      prestige: v.3, lat: v.5, lng: v.6, vipOnly: true)
         }
